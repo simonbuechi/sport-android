@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Sport Amigo</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Inicio</string>
+    <string name="nav_journal">Diario</string>
+    <string name="nav_exercises">Ejercicios</string>
+    <string name="nav_routines">Rutinas</string>
+    <string name="nav_profile">Perfil</string>
+
+    <!-- Dashboard -->
+    <string name="dashboard_greeting">Hola, %1$s</string>
+    <string name="dashboard_guest_greeting">Hola</string>
+    <string name="dashboard_last_7_days">Últimos 7 días</string>
+    <string name="dashboard_workouts_completed">entrenamientos completados</string>
+    <string name="dashboard_current_weight">Peso actual</string>
+    <string name="dashboard_quick_routines">Rutinas rápidas</string>
+    <string name="dashboard_view_all">Ver todo</string>
+    <string name="dashboard_start">Iniciar</string>
+    <string name="dashboard_recent_workouts">Entrenamientos recientes</string>
+    <string name="dashboard_start_workout">Iniciar entrenamiento</string>
+    <string name="dashboard_min">min</string>
+    <string name="dashboard_exercises_performed">%1$d ejercicios realizados</string>
+
+    <!-- Journal -->
+    <string name="journal_title">Diario de entrenamiento</string>
+    <string name="filter_all">Todas las sesiones</string>
+    <string name="filter_strength">Fuerza</string>
+    <string name="filter_cardio">Cardio</string>
+    <string name="filter_flexibility">Flexibilidad</string>
+    <string name="journal_no_workouts">No hay entrenamientos registrados todavía. ¡Toca + para registrar tu primera sesión!</string>
+    <string name="journal_volume_prefix">Vol: %1$d kg</string>
+    <string name="menu_edit">Editar entrenamiento</string>
+    <string name="menu_delete">Eliminar entrenamiento</string>
+
+    <!-- Workout Details -->
+    <string name="workout_details_title">Detalles del entrenamiento</string>
+    <string name="metric_volume">Volumen</string>
+    <string name="metric_duration">Duración</string>
+    <string name="metric_peak_pulse">Pulso máx.</string>
+    <string name="workout_comment_title">Comentarios / Notas</string>
+    <string name="workout_set_label">Serie %1$d</string>
+
+    <!-- Workout Form / Active Logger -->
+    <string name="workout_form_title_new">Registrar entrenamiento</string>
+    <string name="workout_form_title_edit">Editar entrenamiento</string>
+    <string name="btn_save">Guardar</string>
+    <string name="btn_cancel">Cancelar</string>
+    <string name="timer_rest">Descanso: %1$ds</string>
+    <string name="timer_stop">Detener temporizador</string>
+    <string name="workout_notes_placeholder">Notas / Comentarios del entrenamiento</string>
+    <string name="btn_add_set">+ Añadir serie y descanso</string>
+    <string name="btn_add_exercise">Añadir ejercicio</string>
+    <string name="picker_select_exercise">Seleccionar ejercicio</string>
+    <string name="picker_search_placeholder">Buscar ejercicios...</string>
+    <string name="unit_kg">kg</string>
+    <string name="unit_reps">reps</string>
+    <string name="unit_sets">series</string>
+
+    <!-- Exercises -->
+    <string name="exercises_title">Ejercicios</string>
+    <string name="exercises_search_placeholder">Buscar ejercicios o alias...</string>
+    <string name="filter_favorites">★ Favoritos</string>
+    <string name="btn_create_exercise">Añadir ejercicio</string>
+    <string name="exercises_empty">No hay ejercicios que coincidan con la búsqueda.</string>
+
+    <!-- Exercise Details -->
+    <string name="btn_view_history">Historial de rendimiento y récords</string>
+    <string name="section_instructions">Instrucciones</string>
+    <string name="section_aliases">También conocido como</string>
+    <string name="section_links">Recursos externos</string>
+
+    <!-- Exercise History -->
+    <string name="history_title">Historial de rendimiento</string>
+    <string name="metric_max_weight">Peso máximo</string>
+    <string name="metric_est_1rm">1RM estimado</string>
+    <string name="history_past_sessions">Sesiones anteriores (%1$d)</string>
+    <string name="history_empty">Aún no se han registrado entrenamientos con este ejercicio.</string>
+    <string name="history_1rm_label">1RM: %1$s kg</string>
+
+    <!-- Routines -->
+    <string name="routines_title">Rutinas de entrenamiento</string>
+    <string name="btn_create_routine">Crear rutina</string>
+    <string name="btn_start_routine">Iniciar rutina</string>
+    <string name="btn_edit_routine">Editar rutina</string>
+    <string name="edit_routine">Editar rutina</string>
+    <string name="new_routine">Nueva rutina</string>
+    <string name="unit_exercises">ejercicios</string>
+    <string name="table_set">Serie</string>
+    <string name="table_weight">Peso</string>
+    <string name="table_reps">Reps</string>
+    <string name="routine_details_title">Detalles de rutina</string>
+    <string name="routines_empty">Aún no has creado ninguna rutina. ¡Toca \'+\' para crear tu primera plantilla!</string>
+
+    <!-- Profile & Settings -->
+    <string name="profile_title">Perfil</string>
+    <string name="btn_edit_profile">Editar perfil</string>
+    <string name="btn_log_weight">Registrar peso</string>
+    <string name="btn_measure">Medir</string>
+    <string name="profile_body_metrics">Métricas corporales y evolución</string>
+    <string name="metric_weight">Peso</string>
+    <string name="metric_body_fat">Grasa corporal</string>
+    <string name="metric_waist">Cintura</string>
+    <string name="settings_title">Preferencias de la aplicación</string>
+    <string name="settings_appearance">Apariencia</string>
+    <string name="settings_appearance_desc">Elige entre el tema del sistema, claro u oscuro</string>
+    <string name="theme_system">Sistema</string>
+    <string name="theme_light">Claro</string>
+    <string name="theme_dark">Oscuro</string>
+    <string name="settings_language">Idioma</string>
+    <string name="settings_language_desc">Elige tu idioma preferido</string>
+    <string name="pref_autofill">Rellenar series del último entrenamiento</string>
+    <string name="pref_autofill_desc">Rellena peso y repeticiones basándose en la sesión anterior</string>
+    <string name="pref_timer_haptics">Temporizador de descanso y vibración</string>
+    <string name="pref_timer_haptics_desc">Inicia automáticamente el descanso tras cada serie</string>
+    <string name="btn_sign_out">Cerrar sesión</string>
+
+    <!-- Body History -->
+    <string name="body_history_title">Historial corporal</string>
+    <string name="tab_weight_fat">Peso y grasa</string>
+    <string name="tab_circumferences">Medidas corporales</string>
+    <string name="body_fat_percent">%1$s%% grasa corporal</string>
+    <string name="circumference_chest">Pecho</string>
+    <string name="circumference_waist">Cintura</string>
+    <string name="circumference_shoulders">Hombros</string>
+    <string name="circumference_bicep">Bíceps</string>
+    <string name="circumference_thigh">Muslo</string>
+    <string name="body_history_no_weights">Aún no hay registros de peso.</string>
+    <string name="body_history_no_circumferences">Aún no hay medidas registradas.</string>
+
+    <!-- Auth -->
+    <string name="auth_headline">Registra tus entrenamientos, controla tu fuerza y sigue tu evolución física.</string>
+    <string name="auth_email">Correo electrónico</string>
+    <string name="auth_password">Contraseña</string>
+    <string name="auth_sign_in">Iniciar sesión</string>
+    <string name="auth_sign_up">Registrarse</string>
+    <string name="auth_prompt_signup">¿No tienes una cuenta? Regístrate</string>
+    <string name="auth_prompt_signin">¿Ya tienes una cuenta? Inicia sesión</string>
+    <string name="auth_google_signin">Iniciar sesión con Google</string>
+
+    <!-- Body Parts -->
+    <string name="bodypart_whole_body">Cuerpo completo</string>
+    <string name="bodypart_legs">Piernas</string>
+    <string name="bodypart_back">Espalda</string>
+    <string name="bodypart_shoulders">Hombros</string>
+    <string name="bodypart_chest">Pecho</string>
+    <string name="bodypart_biceps">Bíceps</string>
+    <string name="bodypart_triceps">Tríceps</string>
+    <string name="bodypart_core">Abdomen / Core</string>
+    <string name="bodypart_forearms">Antebrazos</string>
+
+    <!-- Categories -->
+    <string name="category_bodyweight">Peso corporal</string>
+    <string name="category_barbell">Barra</string>
+    <string name="category_dumbbell">Mancuerna</string>
+    <string name="category_machine">Máquina</string>
+    <string name="category_cable">Polea</string>
+    <string name="category_kettlebell">Pesa rusa</string>
+
+    <!-- Exercise Types -->
+    <string name="type_strength">Fuerza</string>
+    <string name="type_cardio">Cardio</string>
+    <string name="type_flexibility">Flexibilidad</string>
+    <string name="type_other">Otro</string>
+</resources>

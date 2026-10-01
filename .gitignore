@@ -1,0 +1,64 @@
+# Built application files
+*.apk
+*.aar
+*.ap_
+*.aab
+
+# Files for the ART/Dalvik VM
+*.dex
+
+# Java class files
+*.class
+
+# Generated files
+bin/
+gen/
+out/
+build/
+app/build/
+*/build/
+
+# Gradle files
+.gradle/
+.kotlin/
+
+# Local configuration file (sdk path, etc)
+local.properties
+
+# Proguard / R8 folder
+proguard/
+
+# Log Files
+*.log
+
+# Android Studio / IntelliJ IDEA generated files and folders
+*.iml
+.idea/
+.navigation/
+captures/
+.externalNativeBuild/
+.cxx/
+output-metadata.json
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Keystore & Signing files (Secrets)
+*.jks
+*.keystore
+*.p12
+*.key
+signing.properties
+release-signing.properties
+keystore.properties
+secrets.properties
+
+# Google Services / Firebase (Contains API keys & Project IDs)
+google-services.json
+app/google-services.json
