@@ -39,3 +39,7 @@ A modern, offline-first Android companion app for workout tracking, routine mana
    ```bash
    ./gradlew assembleDebug
    ```
+
+## Privacy Policy
+
+The app's privacy policy is available at [PRIVACY_POLICY.md](PRIVACY_POLICY.md) or online at [https://github.com/simonbuechi/sport-android/blob/main/PRIVACY_POLICY.md](https://github.com/simonbuechi/sport-android/blob/main/PRIVACY_POLICY.md).
