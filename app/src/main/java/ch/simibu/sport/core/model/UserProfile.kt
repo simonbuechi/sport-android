@@ -39,7 +39,8 @@ data class MeasurementEntry(
 data class UserSettings(
     val theme: String = "system", // light, dark, system
     val autoFillSets: Boolean = true,
-    val showTimer: Boolean = true
+    val showTimer: Boolean = true,
+    val takeWorkoutTime: Boolean = true
 )
 
 @Serializable

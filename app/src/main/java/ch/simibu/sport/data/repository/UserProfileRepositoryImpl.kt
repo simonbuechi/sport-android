@@ -89,7 +89,8 @@ class UserProfileRepositoryImpl @Inject constructor(
         val settings = UserSettings(
             theme = settingsMap?.get("theme") as? String ?: "system",
             autoFillSets = settingsMap?.get("autoFillSets") as? Boolean ?: true,
-            showTimer = settingsMap?.get("showTimer") as? Boolean ?: true
+            showTimer = settingsMap?.get("showTimer") as? Boolean ?: true,
+            takeWorkoutTime = settingsMap?.get("takeWorkoutTime") as? Boolean ?: true
         )
 
         return UserProfile(
@@ -166,7 +167,8 @@ class UserProfileRepositoryImpl @Inject constructor(
                 "settings" to mapOf<String, Any?>(
                     "theme" to profile.settings.theme,
                     "autoFillSets" to profile.settings.autoFillSets,
-                    "showTimer" to profile.settings.showTimer
+                    "showTimer" to profile.settings.showTimer,
+                    "takeWorkoutTime" to profile.settings.takeWorkoutTime
                 ),
                 "updatedAt" to getCurrentIsoTimestamp()
             )

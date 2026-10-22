@@ -43,3 +43,6 @@ object ProfileDestination
 
 @Serializable
 object BodyHistoryDestination
+
+@Serializable
+object SettingsDestination

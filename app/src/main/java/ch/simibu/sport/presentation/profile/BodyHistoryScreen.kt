@@ -115,6 +115,13 @@ fun BodyHistoryScreen(
                         contentPadding = PaddingValues(20.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
+                        item {
+                            BodyMetricsChart(
+                                weights = profile.weights,
+                                heightCm = profile.height
+                            )
+                        }
+
                         items(weights) { item ->
                             TactileCard(modifier = Modifier.fillMaxWidth()) {
                                 Row(

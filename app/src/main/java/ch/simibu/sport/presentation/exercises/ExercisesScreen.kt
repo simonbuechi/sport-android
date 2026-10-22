@@ -21,11 +21,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -35,21 +36,31 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ch.simibu.sport.R
 import ch.simibu.sport.core.designsystem.AccentGoldLight
 import ch.simibu.sport.core.designsystem.ExerciseIcon
+import ch.simibu.sport.core.designsystem.SportGradientFloatingActionButton
 import ch.simibu.sport.core.designsystem.TactileCard
 import ch.simibu.sport.core.designsystem.TactileChip
 import ch.simibu.sport.core.model.BodyPart
 import ch.simibu.sport.core.model.ExerciseCategory
+import ch.simibu.sport.core.model.ExerciseType
+
+private enum class FilterGroup {
+    BODY_PART, TYPE, CATEGORY
+}
 
 @Composable
 fun ExercisesScreen(
@@ -58,14 +69,13 @@ fun ExercisesScreen(
     viewModel: ExercisesViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var selectedGroup by remember { mutableStateOf<FilterGroup?>(FilterGroup.BODY_PART) }
 
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(
+            SportGradientFloatingActionButton(
                 onClick = onNavigateToNewExercise,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                shape = RoundedCornerShape(16.dp)
+                contentDescription = stringResource(R.string.btn_create_exercise)
             ) {
                 Icon(Icons.Default.Add, contentDescription = stringResource(R.string.btn_create_exercise))
             }
@@ -78,7 +88,7 @@ fun ExercisesScreen(
                 .padding(paddingValues)
         ) {
             // Search Bar
-            Box(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
+            Box(modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 8.dp)) {
                 OutlinedTextField(
                     value = uiState.searchQuery,
                     onValueChange = viewModel::onSearchQueryChange,
@@ -105,12 +115,13 @@ fun ExercisesScreen(
                 )
             }
 
-            // Filter Chips Carousel
+            // 1. Filter Category Selector Header Row
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 20.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.padding(bottom = 12.dp)
+                modifier = Modifier.padding(vertical = 4.dp)
             ) {
+                // Favorites toggle
                 item {
                     TactileChip(
                         text = stringResource(R.string.filter_favorites),
@@ -119,23 +130,153 @@ fun ExercisesScreen(
                     )
                 }
 
-                items(BodyPart.entries) { bodyPart ->
+                // Body Part Filter Group
+                item {
+                    val label = if (uiState.selectedBodyPart != null) {
+                        "${stringResource(R.string.filter_tab_body_part)}: ${stringResource(uiState.selectedBodyPart!!.labelRes)}"
+                    } else {
+                        stringResource(R.string.filter_tab_body_part)
+                    }
                     TactileChip(
-                        text = stringResource(bodyPart.labelRes),
-                        selected = uiState.selectedBodyPart == bodyPart,
-                        onClick = { viewModel.selectBodyPart(bodyPart) }
+                        text = label,
+                        selected = selectedGroup == FilterGroup.BODY_PART || uiState.selectedBodyPart != null,
+                        onClick = {
+                            selectedGroup = if (selectedGroup == FilterGroup.BODY_PART) null else FilterGroup.BODY_PART
+                        }
                     )
                 }
 
-                items(ExerciseCategory.entries) { category ->
+                // Type Filter Group
+                item {
+                    val label = if (uiState.selectedType != null) {
+                        "${stringResource(R.string.filter_tab_type)}: ${stringResource(uiState.selectedType!!.labelRes)}"
+                    } else {
+                        stringResource(R.string.filter_tab_type)
+                    }
                     TactileChip(
-                        text = stringResource(category.labelRes),
-                        selected = uiState.selectedCategory == category,
-                        onClick = { viewModel.selectCategory(category) }
+                        text = label,
+                        selected = selectedGroup == FilterGroup.TYPE || uiState.selectedType != null,
+                        onClick = {
+                            selectedGroup = if (selectedGroup == FilterGroup.TYPE) null else FilterGroup.TYPE
+                        }
+                    )
+                }
+
+                // Category (Equipment) Filter Group
+                item {
+                    val label = if (uiState.selectedCategory != null) {
+                        "${stringResource(R.string.filter_tab_category)}: ${stringResource(uiState.selectedCategory!!.labelRes)}"
+                    } else {
+                        stringResource(R.string.filter_tab_category)
+                    }
+                    TactileChip(
+                        text = label,
+                        selected = selectedGroup == FilterGroup.CATEGORY || uiState.selectedCategory != null,
+                        onClick = {
+                            selectedGroup = if (selectedGroup == FilterGroup.CATEGORY) null else FilterGroup.CATEGORY
+                        }
+                    )
+                }
+
+                // Clear All Filters
+                if (uiState.hasActiveFilters) {
+                    item {
+                        TactileChip(
+                            text = "✕ ${stringResource(R.string.filter_clear_all)}",
+                            selected = false,
+                            onClick = viewModel::clearAllFilters
+                        )
+                    }
+                }
+            }
+
+            // 2. Options row for the active filter group
+            AnimatedVisibility(visible = selectedGroup != null) {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(top = 4.dp, bottom = 6.dp)
+                ) {
+                    when (selectedGroup) {
+                        FilterGroup.BODY_PART -> {
+                            item {
+                                TactileChip(
+                                    text = stringResource(R.string.filter_all_body_parts),
+                                    selected = uiState.selectedBodyPart == null,
+                                    onClick = { viewModel.selectBodyPart(null) }
+                                )
+                            }
+                            items(BodyPart.entries) { bodyPart ->
+                                TactileChip(
+                                    text = stringResource(bodyPart.labelRes),
+                                    selected = uiState.selectedBodyPart == bodyPart,
+                                    onClick = { viewModel.selectBodyPart(bodyPart) }
+                                )
+                            }
+                        }
+                        FilterGroup.TYPE -> {
+                            item {
+                                TactileChip(
+                                    text = stringResource(R.string.filter_all_types),
+                                    selected = uiState.selectedType == null,
+                                    onClick = { viewModel.selectType(null) }
+                                )
+                            }
+                            items(ExerciseType.entries) { type ->
+                                TactileChip(
+                                    text = stringResource(type.labelRes),
+                                    selected = uiState.selectedType == type,
+                                    onClick = { viewModel.selectType(type) }
+                                )
+                            }
+                        }
+                        FilterGroup.CATEGORY -> {
+                            item {
+                                TactileChip(
+                                    text = stringResource(R.string.filter_all_categories),
+                                    selected = uiState.selectedCategory == null,
+                                    onClick = { viewModel.selectCategory(null) }
+                                )
+                            }
+                            items(ExerciseCategory.entries) { category ->
+                                TactileChip(
+                                    text = stringResource(category.labelRes),
+                                    selected = uiState.selectedCategory == category,
+                                    onClick = { viewModel.selectCategory(category) }
+                                )
+                            }
+                        }
+                        null -> {}
+                    }
+                }
+            }
+
+            // 3. Results count summary
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 22.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.exercises_count_matching, uiState.exercises.size),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.Medium
+                )
+
+                if (uiState.hasActiveFilters) {
+                    Text(
+                        text = "${uiState.activeFilterCount} active",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
             }
 
+            // 4. Content list or loading/empty
             if (uiState.isLoading) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -159,8 +300,8 @@ fun ExercisesScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 80.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(uiState.exercises, key = { it.id }) { exercise ->
                         val isFavorite = uiState.markedExercises[exercise.id]?.favorite == true
@@ -190,6 +331,17 @@ fun ExercisesScreen(
                                     )
                                     Spacer(modifier = Modifier.height(6.dp))
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Text(
+                                            text = stringResource(exercise.type.labelRes),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        Text(
+                                            text = "•",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
                                         Text(
                                             text = stringResource(exercise.bodypart.labelRes),
                                             style = MaterialTheme.typography.labelSmall,

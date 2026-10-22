@@ -78,14 +78,15 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    fun updateSettings(theme: String, autoFillSets: Boolean, showTimer: Boolean) {
+    fun updateSettings(theme: String, autoFillSets: Boolean, showTimer: Boolean, takeWorkoutTime: Boolean) {
         val current = uiState.value.profile ?: return
         viewModelScope.launch {
             val updated = current.copy(
                 settings = current.settings.copy(
                     theme = theme,
                     autoFillSets = autoFillSets,
-                    showTimer = showTimer
+                    showTimer = showTimer,
+                    takeWorkoutTime = takeWorkoutTime
                 )
             )
             userProfileRepository.updateUserProfile(updated)

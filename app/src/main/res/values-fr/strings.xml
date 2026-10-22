@@ -20,8 +20,16 @@
     <string name="dashboard_start">Démarrer</string>
     <string name="dashboard_recent_workouts">Séances récentes</string>
     <string name="dashboard_start_workout">Démarrer une séance</string>
+    <string name="dashboard_empty_workout">Séance vide</string>
+    <string name="dashboard_empty_workout_desc">Enregistrer une séance sans routine</string>
+    <string name="dashboard_no_favorite_routines">Aucune routine favorite pour l\'instant</string>
+    <string name="dashboard_no_favorite_routines_desc">Ajoutez des routines en favoris dans l\'onglet Routines pour les lancer rapidement ici.</string>
     <string name="dashboard_min">min</string>
     <string name="dashboard_exercises_performed">%1$d exercices effectués</string>
+    <string name="dashboard_recent_prs">Records personnels</string>
+    <string name="dashboard_today">Aujourd\'hui</string>
+    <string name="dashboard_yesterday">Hier</string>
+    <string name="dashboard_days_ago">il y a %1$d j</string>
 
     <!-- Journal -->
     <string name="journal_title">Journal d\'entraînement</string>
@@ -70,6 +78,12 @@
     <string name="section_instructions">Instructions</string>
     <string name="section_aliases">Également connu sous</string>
     <string name="section_links">Ressources externes</string>
+    <string name="exercises_last_trained">Dernier entraînement</string>
+    <string name="exercises_never_trained">Pas encore enregistré</string>
+    <string name="exercises_my_notes">Mes notes personnelles</string>
+    <string name="exercises_notes_placeholder">Ajouter des repères personnels, hauteur du siège, réglages...</string>
+    <string name="btn_save_notes">Enregistrer les notes</string>
+    <string name="notes_saved">Notes enregistrées</string>
 
     <!-- Exercise History -->
     <string name="history_title">Historique des performances</string>
@@ -95,6 +109,10 @@
 
     <!-- Profile & Settings -->
     <string name="profile_title">Profil</string>
+    <string name="settings_nav_button">Paramètres</string>
+    <string name="settings_desc">Thème, langue et préférences d\'entraînement</string>
+    <string name="settings_workout_prefs">Préférences d\'entraînement</string>
+    <string name="settings_account">Compte</string>
     <string name="btn_edit_profile">Modifier le profil</string>
     <string name="btn_log_weight">Enregistrer le poids</string>
     <string name="btn_measure">Mesurer</string>
@@ -114,6 +132,14 @@
     <string name="pref_autofill_desc">Pré-remplit le poids et les répétitions selon vos performances passées</string>
     <string name="pref_timer_haptics">Minuteur de repos &amp; vibrations</string>
     <string name="pref_timer_haptics_desc">Lance automatiquement le compte à rebours de repos après chaque série</string>
+    <string name="pref_take_workout_time">Chronométrer la séance</string>
+    <string name="pref_take_workout_time_desc">Afficher un chronomètre pendant la séance et enregistrer la durée automatiquement</string>
+    <string name="workout_in_progress">Séance en cours</string>
+    <string name="workout_timer_elapsed">Durée de la séance</string>
+    <string name="btn_resume_workout">Reprendre</string>
+    <string name="btn_discard_workout">Abandonner</string>
+    <string name="dialog_discard_workout_title">Abandonner la séance ?</string>
+    <string name="dialog_discard_workout_msg">Voulez-vous vraiment abandonner cette séance ? Toute progression non enregistrée sera perdue.</string>
     <string name="btn_sign_out">Se déconnecter</string>
 
     <!-- Body History -->
@@ -163,4 +189,81 @@
     <string name="type_cardio">Cardio</string>
     <string name="type_flexibility">Souplesse</string>
     <string name="type_other">Autre</string>
+
+    <!-- Charts & Timeframes -->
+    <string name="chart_progress">Graphique de progression</string>
+    <string name="chart_weight_progress">Progression du poids</string>
+    <string name="chart_timeframe">Période</string>
+    <string name="chart_timeframe_1m">1M</string>
+    <string name="chart_timeframe_3m">3M</string>
+    <string name="chart_timeframe_6m">6M</string>
+    <string name="chart_timeframe_1y">1A</string>
+    <string name="chart_timeframe_all">Tout</string>
+    <string name="chart_not_enough_data">Pas encore assez de données pour afficher les progrès.</string>
+    <string name="chart_metric_1rm">1RM Est.</string>
+    <string name="chart_metric_weight">Poids</string>
+    <string name="chart_metric_bmi">IMC</string>
+    <string name="chart_metric_body_fat">Masse grasse</string>
+
+    <!-- Filter Enhancements -->
+    <string name="filter_all_types">Tous les types</string>
+    <string name="filter_all_body_parts">Toutes les parties</string>
+    <string name="filter_all_categories">Tous les équipements</string>
+    <string name="filter_clear_all">Effacer</string>
+    <string name="filter_tab_body_part">Partie du corps</string>
+    <string name="filter_tab_type">Type</string>
+    <string name="filter_tab_category">Équipement</string>
+    <string name="exercises_count_matching">%1$d exercices</string>
+
+    <!-- Plate Calculator -->
+    <string name="plate_calc_title">Calculateur de disques</string>
+    <string name="plate_calc_target_weight">Poids cible</string>
+    <string name="plate_calc_bar_weight">Poids de la barre</string>
+    <string name="plate_calc_weight_per_side">Par côté : %1$.2f kg</string>
+    <string name="plate_calc_bar_standard">20 kg Olympique</string>
+    <string name="plate_calc_bar_women">15 kg Femme</string>
+    <string name="plate_calc_bar_ez">10 kg Barre EZ</string>
+    <string name="plate_calc_bar_zero">0 kg / Machine</string>
+    <string name="plate_calc_available_plates">Disques disponibles</string>
+    <string name="plate_calc_plates_needed">Disques par côté</string>
+    <string name="plate_calc_apply_to_set">Appliquer %1$.1f kg à la série</string>
+    <string name="plate_calc_empty_bar">Barre à vide (aucun disque)</string>
+    <string name="plate_calc_remainder_warning">Différence : +%1$.2f kg non alloué</string>
+    <string name="plate_calc_done">Terminé</string>
+    <string name="plate_calc_open_tooltip">Calculer les disques</string>
+
+    <!-- Muscle Recovery Heatmap -->
+    <string name="recovery_title">Récupération musculaire</string>
+    <string name="recovery_readiness">État de forme général</string>
+    <string name="recovery_fatigued">Fatigué</string>
+    <string name="recovery_recovering">En récupération</string>
+    <string name="recovery_ready">Prêt</string>
+    <string name="recovery_front_view">Face</string>
+    <string name="recovery_back_view">Dos</string>
+    <string name="recovery_all_recovered">Frais et totalement récupéré</string>
+    <string name="recovery_sets_done">%1$d séries sur les 72 dernières heures</string>
+    <string name="recovery_hours_ago">il y a %1$d h</string>
+    <string name="recovery_details">Détails des muscles</string>
+    <string name="recovery_tap_hint">Touchez un muscle pour inspecter</string>
+
+    <!-- 1RM Calculator & Percentage Breakdown -->
+    <string name="one_rm_title">Calculateur 1RM</string>
+    <string name="one_rm_formula">Formule</string>
+    <string name="one_rm_formula_epley">Epley</string>
+    <string name="one_rm_formula_brzycki">Brzycki</string>
+    <string name="one_rm_formula_lombardi">Lombardi</string>
+    <string name="one_rm_formula_wathan">Wathan</string>
+    <string name="one_rm_formula_average">Moyenne</string>
+    <string name="one_rm_percentage_table">Tableau des pourcentages</string>
+    <string name="one_rm_reps_input">Répétitions</string>
+    <string name="one_rm_weight_input">Poids soulevé</string>
+    <string name="one_rm_load_plates_tooltip">Calculer les disques</string>
+    <string name="one_rm_round_2_5">Arrondir (2,5 kg)</string>
+    <string name="one_rm_round_exact">Exact</string>
+    <string name="one_rm_zone_max">Effort maximal</string>
+    <string name="one_rm_zone_strength">Force</string>
+    <string name="one_rm_zone_hypertrophy">Hypertrophie</string>
+    <string name="one_rm_zone_endurance">Endurance</string>
+    <string name="one_rm_zone_warmup">Échauffement</string>
+    <string name="one_rm_open_tooltip">Calculateur 1RM</string>
 </resources>

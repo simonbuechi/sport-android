@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.foundation.layout.Column
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -26,6 +27,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -44,6 +47,7 @@ import ch.simibu.sport.presentation.journal.WorkoutDetailsScreen
 import ch.simibu.sport.presentation.journal.WorkoutFormScreen
 import ch.simibu.sport.presentation.profile.BodyHistoryScreen
 import ch.simibu.sport.presentation.profile.ProfileScreen
+import ch.simibu.sport.presentation.profile.SettingsScreen
 import ch.simibu.sport.presentation.templates.TemplateFormScreen
 import ch.simibu.sport.presentation.templates.TemplatesScreen
 
@@ -68,49 +72,77 @@ val bottomNavItems = listOf(
 @Composable
 fun AppNavigation(
     navController: NavHostController,
-    isAuthenticated: Boolean
+    isAuthenticated: Boolean,
+    activeWorkoutViewModel: ActiveWorkoutViewModel = hiltViewModel()
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
+    val activeSession by activeWorkoutViewModel.activeSession.collectAsStateWithLifecycle()
+    val elapsedSeconds by activeWorkoutViewModel.elapsedSeconds.collectAsStateWithLifecycle()
+
     val isTopLevelDestination = bottomNavItems.any { item ->
         currentDestination?.hasRoute(item.route::class) == true
     }
+    val isOnWorkoutForm = currentDestination?.hasRoute(WorkoutFormDestination::class) == true
+    val showBanner = activeSession != null && !isOnWorkoutForm
+    val showBottomNav = isTopLevelDestination && isAuthenticated
 
     Scaffold(
         bottomBar = {
-            if (isTopLevelDestination && isAuthenticated) {
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 8.dp
-                ) {
-                    bottomNavItems.forEach { item ->
-                        val selected = currentDestination?.hasRoute(item.route::class) == true
-                        val title = stringResource(item.titleRes)
-
-                        NavigationBarItem(
-                            selected = selected,
+            if (showBanner || showBottomNav) {
+                Column {
+                    val session = activeSession
+                    if (showBanner && session != null) {
+                        ActiveWorkoutBanner(
+                            elapsedSeconds = elapsedSeconds,
+                            showTimer = session.takeWorkoutTime,
+                            exerciseCount = session.state.exercises.size,
+                            templateName = session.templateName,
                             onClick = {
-                                navController.navigate(item.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
+                                navController.navigate(WorkoutFormDestination(templateId = session.templateId)) {
+                                    launchSingleTop = true
                                 }
-                                launchSingleTop = true
-                                restoreState = true
+                            },
+                            onDiscard = {
+                                activeWorkoutViewModel.discardWorkout()
                             }
-                        },
-                        icon = {
-                            Icon(item.icon, contentDescription = title)
-                        },
-                        label = { Text(title) },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
                         )
+                    }
+                    if (showBottomNav) {
+                        NavigationBar(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 8.dp
+                        ) {
+                            bottomNavItems.forEach { item ->
+                                val selected = currentDestination?.hasRoute(item.route::class) == true
+                                val title = stringResource(item.titleRes)
+
+                                NavigationBarItem(
+                                    selected = selected,
+                                    onClick = {
+                                        navController.navigate(item.route) {
+                                            popUpTo(navController.graph.findStartDestination().id) {
+                                                saveState = true
+                                            }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
+                                    },
+                                    icon = {
+                                        Icon(item.icon, contentDescription = title)
+                                    },
+                                    label = { Text(title) },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -170,6 +202,9 @@ fun AppNavigation(
                     },
                     onNavigateToWeightHistory = {
                         navController.navigate(BodyHistoryDestination)
+                    },
+                    onNavigateToExerciseDetails = { exerciseId ->
+                        navController.navigate(ExerciseDetailsDestination(exerciseId))
                     }
                 )
             }
@@ -281,6 +316,16 @@ fun AppNavigation(
                     onNavigateToBodyHistory = {
                         navController.navigate(BodyHistoryDestination)
                     },
+                    onNavigateToSettings = {
+                        navController.navigate(SettingsDestination)
+                    }
+                )
+            }
+
+            // Settings
+            composable<SettingsDestination> {
+                SettingsScreen(
+                    onNavigateBack = { navController.popBackStack() },
                     onSignOutSuccess = {
                         navController.navigate(AuthDestination) {
                             popUpTo(DashboardDestination) { inclusive = true }

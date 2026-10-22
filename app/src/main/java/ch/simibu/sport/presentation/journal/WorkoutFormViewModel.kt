@@ -7,10 +7,12 @@ import ch.simibu.sport.core.model.ExerciseSet
 import ch.simibu.sport.core.model.ExerciseType
 import ch.simibu.sport.core.model.Workout
 import ch.simibu.sport.core.model.WorkoutExercise
+import ch.simibu.sport.data.repository.ActiveWorkoutManager
 import ch.simibu.sport.data.repository.DraftRepository
 import ch.simibu.sport.domain.repository.AuthRepository
 import ch.simibu.sport.domain.repository.ExerciseRepository
 import ch.simibu.sport.domain.repository.TemplateRepository
+import ch.simibu.sport.domain.repository.UserProfileRepository
 import ch.simibu.sport.domain.repository.WorkoutRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -46,7 +48,9 @@ data class WorkoutFormUiState(
     // Timer state
     val timerRunning: Boolean = false,
     val timerSecondsRemaining: Int = 0,
-    val timerInitialSeconds: Int = 90
+    val timerInitialSeconds: Int = 90,
+    val takeWorkoutTime: Boolean = true,
+    val elapsedWorkoutSeconds: Long = 0L
 )
 
 @HiltViewModel
@@ -55,7 +59,9 @@ class WorkoutFormViewModel @Inject constructor(
     private val exerciseRepository: ExerciseRepository,
     private val templateRepository: TemplateRepository,
     private val draftRepository: DraftRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val userProfileRepository: UserProfileRepository,
+    val activeWorkoutManager: ActiveWorkoutManager
 ) : ViewModel() {
 
     private val currentUserId = authRepository.currentUserId
@@ -70,6 +76,26 @@ class WorkoutFormViewModel @Inject constructor(
             exerciseRepository.getExercises().collect { list ->
                 _uiState.update { it.copy(availableExercises = list) }
             }
+        }
+        viewModelScope.launch {
+            activeWorkoutManager.elapsedSeconds.collect { seconds ->
+                _uiState.update {
+                    it.copy(
+                        elapsedWorkoutSeconds = seconds,
+                        length = if (it.takeWorkoutTime && it.id == null) {
+                            maxOf(1, (seconds / 60).toInt())
+                        } else {
+                            it.length
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    private fun syncActiveSession() {
+        if (_uiState.value.id == null) {
+            activeWorkoutManager.updateState(_uiState.value)
         }
     }
 
@@ -91,35 +117,86 @@ class WorkoutFormViewModel @Inject constructor(
                             intensity = existing.intensity ?: 3,
                             maxPulse = existing.maxPulse,
                             comment = existing.comment,
-                            exercises = existing.exercises
+                            exercises = existing.exercises,
+                            takeWorkoutTime = false
                         )
                     }
                 }
-            } else if (templateId != null) {
-                // Starting from template
-                val template = templateRepository.getTemplate(uid, templateId).firstOrNull()
-                if (template != null) {
-                    val initialExercises = template.exercises.map { te ->
-                        WorkoutExercise(
-                            exerciseId = te.exerciseId,
-                            note = te.note,
-                            sets = if (te.sets.isNotEmpty()) te.sets else listOf(ExerciseSet())
-                        )
+            } else {
+                // Live active workout session
+                val existingSession = activeWorkoutManager.activeSession.value
+                if (existingSession != null) {
+                    _uiState.value = existingSession.state.copy(
+                        takeWorkoutTime = existingSession.takeWorkoutTime,
+                        availableExercises = _uiState.value.availableExercises
+                    )
+                } else {
+                    val profile = userProfileRepository.getUserProfile(uid).firstOrNull()
+                    val takeWorkoutTime = profile?.settings?.takeWorkoutTime ?: true
+
+                    var initialExercises = emptyList<WorkoutExercise>()
+                    var templateName: String? = null
+
+                    if (templateId != null) {
+                        val template = templateRepository.getTemplate(uid, templateId).firstOrNull()
+                        if (template != null) {
+                            templateName = template.name
+                            initialExercises = template.exercises.map { te ->
+                                WorkoutExercise(
+                                    exerciseId = te.exerciseId,
+                                    note = te.note,
+                                    sets = if (te.sets.isNotEmpty()) te.sets else listOf(ExerciseSet())
+                                )
+                            }
+                        }
                     }
-                    _uiState.update {
-                        it.copy(exercises = initialExercises)
-                    }
+
+                    val newState = WorkoutFormUiState(
+                        exercises = initialExercises,
+                        takeWorkoutTime = takeWorkoutTime,
+                        availableExercises = _uiState.value.availableExercises
+                    )
+                    _uiState.value = newState
+                    activeWorkoutManager.startSession(
+                        templateId = templateId,
+                        templateName = templateName,
+                        takeWorkoutTime = takeWorkoutTime,
+                        initialState = newState
+                    )
                 }
             }
         }
     }
 
-    fun onDateChange(date: String) = _uiState.update { it.copy(date = date) }
-    fun onLengthChange(length: Int) = _uiState.update { it.copy(length = length) }
-    fun onSessionTypeChange(type: ExerciseType) = _uiState.update { it.copy(sessionType = type) }
-    fun onIntensityChange(intensity: Int) = _uiState.update { it.copy(intensity = intensity) }
-    fun onMaxPulseChange(pulse: Int?) = _uiState.update { it.copy(maxPulse = pulse) }
-    fun onCommentChange(comment: String) = _uiState.update { it.copy(comment = comment) }
+    fun onDateChange(date: String) {
+        _uiState.update { it.copy(date = date) }
+        syncActiveSession()
+    }
+
+    fun onLengthChange(length: Int) {
+        _uiState.update { it.copy(length = length) }
+        syncActiveSession()
+    }
+
+    fun onSessionTypeChange(type: ExerciseType) {
+        _uiState.update { it.copy(sessionType = type) }
+        syncActiveSession()
+    }
+
+    fun onIntensityChange(intensity: Int) {
+        _uiState.update { it.copy(intensity = intensity) }
+        syncActiveSession()
+    }
+
+    fun onMaxPulseChange(pulse: Int?) {
+        _uiState.update { it.copy(maxPulse = pulse) }
+        syncActiveSession()
+    }
+
+    fun onCommentChange(comment: String) {
+        _uiState.update { it.copy(comment = comment) }
+        syncActiveSession()
+    }
 
     fun addExercise(exerciseId: String) {
         val uid = currentUserId ?: return
@@ -146,6 +223,7 @@ class WorkoutFormViewModel @Inject constructor(
                     )
                 )
             }
+            syncActiveSession()
         }
     }
 
@@ -154,6 +232,7 @@ class WorkoutFormViewModel @Inject constructor(
             val updated = state.exercises.toMutableList().apply { removeAt(index) }
             state.copy(exercises = updated)
         }
+        syncActiveSession()
     }
 
     fun addSet(exerciseIndex: Int) {
@@ -168,6 +247,7 @@ class WorkoutFormViewModel @Inject constructor(
             updated[exerciseIndex] = ex.copy(sets = ex.sets + newSet)
             state.copy(exercises = updated)
         }
+        syncActiveSession()
         startTimer(uiState.value.timerInitialSeconds)
     }
 
@@ -179,6 +259,7 @@ class WorkoutFormViewModel @Inject constructor(
             updated[exerciseIndex] = ex.copy(sets = setList)
             state.copy(exercises = updated)
         }
+        syncActiveSession()
     }
 
     fun updateSet(exerciseIndex: Int, setIndex: Int, weight: Double?, reps: Int?) {
@@ -194,6 +275,7 @@ class WorkoutFormViewModel @Inject constructor(
             updated[exerciseIndex] = ex.copy(sets = setList)
             state.copy(exercises = updated)
         }
+        syncActiveSession()
     }
 
     fun startTimer(seconds: Int) {
@@ -213,6 +295,10 @@ class WorkoutFormViewModel @Inject constructor(
         _uiState.update { it.copy(timerRunning = false, timerSecondsRemaining = 0) }
     }
 
+    fun discardWorkout() {
+        activeWorkoutManager.clearSession()
+    }
+
     fun saveWorkout() {
         val uid = currentUserId ?: return
         val state = _uiState.value
@@ -224,12 +310,18 @@ class WorkoutFormViewModel @Inject constructor(
 
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, error = null) }
+            val finalLength = if (state.takeWorkoutTime && state.id == null) {
+                maxOf(1, (activeWorkoutManager.elapsedSeconds.value / 60).toInt())
+            } else {
+                state.length
+            }
+
             val workout = Workout(
                 id = state.id ?: "",
                 userId = uid,
                 date = state.date,
                 time = state.time,
-                length = state.length,
+                length = finalLength,
                 sessionType = state.sessionType,
                 intensity = state.intensity,
                 maxPulse = state.maxPulse,
@@ -246,7 +338,7 @@ class WorkoutFormViewModel @Inject constructor(
 
             result.fold(
                 onSuccess = {
-                    draftRepository.clearWorkoutDraft()
+                    activeWorkoutManager.clearSession()
                     _uiState.update { it.copy(isSaving = false, isSaved = true) }
                 },
                 onFailure = { err ->

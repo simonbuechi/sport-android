@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ch.simibu.sport.R
+import ch.simibu.sport.core.designsystem.SportGradientFloatingActionButton
 import ch.simibu.sport.core.designsystem.AccentGoldLight
 import ch.simibu.sport.core.designsystem.ExerciseIcon
 import ch.simibu.sport.core.designsystem.TactileButton
@@ -126,11 +127,9 @@ fun TemplatesScreen(
                 // Dense Routines Screen
                 Scaffold(
                     floatingActionButton = {
-                        FloatingActionButton(
+                        SportGradientFloatingActionButton(
                             onClick = onNavigateToNewTemplate,
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary,
-                            shape = RoundedCornerShape(16.dp)
+                            contentDescription = stringResource(R.string.btn_create_routine)
                         ) {
                             Icon(Icons.Default.Add, contentDescription = stringResource(R.string.btn_create_routine))
                         }
@@ -271,21 +270,25 @@ fun TemplatesScreen(
                                                 )
                                             }
 
-                                            // Start Routine Icon Button
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(40.dp)
-                                                    .clip(CircleShape)
-                                                    .background(MaterialTheme.colorScheme.primary)
-                                                    .tactileClickable { onNavigateToStartWorkout(template.id) },
-                                                contentAlignment = Alignment.Center
+                                            // Start Routine Button (Subtle soft accent)
+                                            IconButton(
+                                                onClick = { onNavigateToStartWorkout(template.id) },
+                                                modifier = Modifier.size(36.dp)
                                             ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.PlayArrow,
-                                                    contentDescription = stringResource(R.string.btn_start_routine),
-                                                    tint = MaterialTheme.colorScheme.onPrimary,
-                                                    modifier = Modifier.size(24.dp)
-                                                )
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(32.dp)
+                                                        .clip(CircleShape)
+                                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.PlayArrow,
+                                                        contentDescription = stringResource(R.string.btn_start_routine),
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                }
                                             }
                                         }
                                     }

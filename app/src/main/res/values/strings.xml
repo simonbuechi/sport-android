@@ -20,8 +20,16 @@
     <string name="dashboard_start">Start</string>
     <string name="dashboard_recent_workouts">Recent Workouts</string>
     <string name="dashboard_start_workout">Start Workout</string>
+    <string name="dashboard_empty_workout">Empty Workout</string>
+    <string name="dashboard_empty_workout_desc">Log a workout without a routine</string>
+    <string name="dashboard_no_favorite_routines">No favorite routines yet</string>
+    <string name="dashboard_no_favorite_routines_desc">Star routines in the Routines tab to quickly launch them here.</string>
     <string name="dashboard_min">min</string>
     <string name="dashboard_exercises_performed">%1$d exercises performed</string>
+    <string name="dashboard_recent_prs">Personal Records</string>
+    <string name="dashboard_today">Today</string>
+    <string name="dashboard_yesterday">Yesterday</string>
+    <string name="dashboard_days_ago">%1$dd ago</string>
 
     <!-- Journal -->
     <string name="journal_title">Workout Journal</string>
@@ -70,6 +78,12 @@
     <string name="section_instructions">Instructions</string>
     <string name="section_aliases">Also known as</string>
     <string name="section_links">External Resources</string>
+    <string name="exercises_last_trained">Last Trained</string>
+    <string name="exercises_never_trained">Not logged yet</string>
+    <string name="exercises_my_notes">My Personal Notes</string>
+    <string name="exercises_notes_placeholder">Add personal cues, seat height, settings...</string>
+    <string name="btn_save_notes">Save Notes</string>
+    <string name="notes_saved">Notes saved</string>
 
     <!-- Exercise History -->
     <string name="history_title">Performance History</string>
@@ -95,6 +109,10 @@
 
     <!-- Profile & Settings -->
     <string name="profile_title">Profile</string>
+    <string name="settings_nav_button">Settings</string>
+    <string name="settings_desc">Theme, language, and workout preferences</string>
+    <string name="settings_workout_prefs">Workout Preferences</string>
+    <string name="settings_account">Account</string>
     <string name="btn_edit_profile">Edit Profile Details</string>
     <string name="btn_log_weight">Log Weight</string>
     <string name="btn_measure">Measure</string>
@@ -114,6 +132,14 @@
     <string name="pref_autofill_desc">Pre-populates weight &amp; reps based on previous performance</string>
     <string name="pref_timer_haptics">Rest Timer &amp; Haptics</string>
     <string name="pref_timer_haptics_desc">Automatically triggers rest countdown timer after each set</string>
+    <string name="pref_take_workout_time">Take Workout Time</string>
+    <string name="pref_take_workout_time_desc">Track live elapsed time during workouts and auto-record duration</string>
+    <string name="workout_in_progress">Workout in progress</string>
+    <string name="workout_timer_elapsed">Workout Duration</string>
+    <string name="btn_resume_workout">Resume</string>
+    <string name="btn_discard_workout">Discard</string>
+    <string name="dialog_discard_workout_title">Discard Workout?</string>
+    <string name="dialog_discard_workout_msg">Are you sure you want to discard this workout? All unsaved progress will be lost.</string>
     <string name="btn_sign_out">Sign Out</string>
 
     <!-- Body History -->
@@ -163,4 +189,81 @@
     <string name="type_cardio">Cardio</string>
     <string name="type_flexibility">Flexibility</string>
     <string name="type_other">Other</string>
+
+    <!-- Charts & Timeframes -->
+    <string name="chart_progress">Progress Chart</string>
+    <string name="chart_weight_progress">Weight Progress</string>
+    <string name="chart_timeframe">Timeframe</string>
+    <string name="chart_timeframe_1m">1M</string>
+    <string name="chart_timeframe_3m">3M</string>
+    <string name="chart_timeframe_6m">6M</string>
+    <string name="chart_timeframe_1y">1Y</string>
+    <string name="chart_timeframe_all">All</string>
+    <string name="chart_not_enough_data">Not enough data points yet to show progress.</string>
+    <string name="chart_metric_1rm">Est. 1RM</string>
+    <string name="chart_metric_weight">Weight</string>
+    <string name="chart_metric_bmi">BMI</string>
+    <string name="chart_metric_body_fat">Body Fat</string>
+
+    <!-- Filter Enhancements -->
+    <string name="filter_all_types">All Types</string>
+    <string name="filter_all_body_parts">All Body Parts</string>
+    <string name="filter_all_categories">All Equipment</string>
+    <string name="filter_clear_all">Clear</string>
+    <string name="filter_tab_body_part">Body Part</string>
+    <string name="filter_tab_type">Type</string>
+    <string name="filter_tab_category">Equipment</string>
+    <string name="exercises_count_matching">%1$d exercises</string>
+
+    <!-- Plate Calculator -->
+    <string name="plate_calc_title">Plate Calculator</string>
+    <string name="plate_calc_target_weight">Target Weight</string>
+    <string name="plate_calc_bar_weight">Bar Weight</string>
+    <string name="plate_calc_weight_per_side">Each side: %1$.2f kg</string>
+    <string name="plate_calc_bar_standard">20 kg Olympic</string>
+    <string name="plate_calc_bar_women">15 kg Women</string>
+    <string name="plate_calc_bar_ez">10 kg EZ Bar</string>
+    <string name="plate_calc_bar_zero">0 kg / Machine</string>
+    <string name="plate_calc_available_plates">Available Plates</string>
+    <string name="plate_calc_plates_needed">Plates on each side</string>
+    <string name="plate_calc_apply_to_set">Apply %1$.1f kg to Set</string>
+    <string name="plate_calc_empty_bar">Empty Bar (No plates needed)</string>
+    <string name="plate_calc_remainder_warning">Difference: +%1$.2f kg unallocated</string>
+    <string name="plate_calc_done">Done</string>
+    <string name="plate_calc_open_tooltip">Plate Calculator</string>
+
+    <!-- Muscle Recovery Heatmap -->
+    <string name="recovery_title">Muscle Recovery</string>
+    <string name="recovery_readiness">Overall Readiness</string>
+    <string name="recovery_fatigued">Fatigued</string>
+    <string name="recovery_recovering">Recovering</string>
+    <string name="recovery_ready">Ready</string>
+    <string name="recovery_front_view">Front</string>
+    <string name="recovery_back_view">Back</string>
+    <string name="recovery_all_recovered">Fresh and fully recovered</string>
+    <string name="recovery_sets_done">%1$d sets in last 72h</string>
+    <string name="recovery_hours_ago">%1$dh ago</string>
+    <string name="recovery_details">Muscle Details</string>
+    <string name="recovery_tap_hint">Tap a muscle to inspect recovery</string>
+
+    <!-- 1RM Calculator & Percentage Breakdown -->
+    <string name="one_rm_title">1RM Calculator</string>
+    <string name="one_rm_formula">Formula</string>
+    <string name="one_rm_formula_epley">Epley</string>
+    <string name="one_rm_formula_brzycki">Brzycki</string>
+    <string name="one_rm_formula_lombardi">Lombardi</string>
+    <string name="one_rm_formula_wathan">Wathan</string>
+    <string name="one_rm_formula_average">Average</string>
+    <string name="one_rm_percentage_table">Percentage Breakdown</string>
+    <string name="one_rm_reps_input">Reps Completed</string>
+    <string name="one_rm_weight_input">Weight Lifted</string>
+    <string name="one_rm_load_plates_tooltip">Calculate Plates</string>
+    <string name="one_rm_round_2_5">Nearest 2.5 kg</string>
+    <string name="one_rm_round_exact">Exact</string>
+    <string name="one_rm_zone_max">Max Effort</string>
+    <string name="one_rm_zone_strength">Strength</string>
+    <string name="one_rm_zone_hypertrophy">Hypertrophy</string>
+    <string name="one_rm_zone_endurance">Endurance</string>
+    <string name="one_rm_zone_warmup">Warmup</string>
+    <string name="one_rm_open_tooltip">1RM Calculator</string>
 </resources>

@@ -47,6 +47,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ch.simibu.sport.R
+import ch.simibu.sport.core.designsystem.SportGradientFloatingActionButton
 import ch.simibu.sport.core.designsystem.AccentGoldLight
 import ch.simibu.sport.core.designsystem.SportPurple
 import ch.simibu.sport.core.designsystem.SportRuby
@@ -66,11 +67,9 @@ fun JournalScreen(
 
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(
+            SportGradientFloatingActionButton(
                 onClick = onNavigateToNewWorkout,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                shape = RoundedCornerShape(16.dp)
+                contentDescription = stringResource(R.string.workout_form_title_new)
             ) {
                 Icon(Icons.Default.Add, contentDescription = stringResource(R.string.workout_form_title_new))
             }

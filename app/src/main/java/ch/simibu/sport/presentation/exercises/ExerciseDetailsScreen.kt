@@ -2,7 +2,9 @@ package ch.simibu.sport.presentation.exercises
 
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,95 +23,56 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.ViewModel
 import ch.simibu.sport.R
-import androidx.lifecycle.viewModelScope
 import ch.simibu.sport.core.designsystem.AccentGoldLight
+import ch.simibu.sport.core.designsystem.ChartDataPoint
+import ch.simibu.sport.core.designsystem.ChartTimeFrame
 import ch.simibu.sport.core.designsystem.ExerciseIcon
+import ch.simibu.sport.core.designsystem.SportLineChart
 import ch.simibu.sport.core.designsystem.TactileButton
 import ch.simibu.sport.core.designsystem.TactileCard
-import ch.simibu.sport.core.model.Exercise
-import ch.simibu.sport.domain.repository.AuthRepository
-import ch.simibu.sport.domain.repository.ExerciseRepository
-import ch.simibu.sport.domain.repository.UserProfileRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
-import javax.inject.Inject
-
-data class ExerciseDetailsUiState(
-    val exercise: Exercise? = null,
-    val isFavorite: Boolean = false,
-    val isLoading: Boolean = true
-)
-
-@HiltViewModel
-class ExerciseDetailsViewModel @Inject constructor(
-    private val exerciseRepository: ExerciseRepository,
-    private val userProfileRepository: UserProfileRepository,
-    private val authRepository: AuthRepository
-) : ViewModel() {
-
-    private val currentUserId = authRepository.currentUserId
-
-    fun getUiState(exerciseId: String): StateFlow<ExerciseDetailsUiState> {
-        return combine(
-            exerciseRepository.getExercise(exerciseId),
-            if (currentUserId != null) userProfileRepository.getUserProfile(currentUserId) else kotlinx.coroutines.flow.flowOf(null)
-        ) { exercise, profile ->
-            val isFav = profile?.markedExercises?.get(exerciseId)?.favorite == true
-            ExerciseDetailsUiState(
-                exercise = exercise,
-                isFavorite = isFav,
-                isLoading = false
-            )
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = ExerciseDetailsUiState()
-        )
-    }
-
-    fun toggleFavorite(exerciseId: String, currentFavorite: Boolean) {
-        val uid = currentUserId ?: return
-        viewModelScope.launch {
-            userProfileRepository.updateExerciseStatus(
-                userId = uid,
-                exerciseId = exerciseId,
-                favorite = !currentFavorite,
-                notes = null
-            )
-        }
-    }
-}
+import ch.simibu.sport.presentation.calculator.OneRepMaxSheet
+import ch.simibu.sport.presentation.calculator.PlateCalculatorSheet
+import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -122,6 +85,27 @@ fun ExerciseDetailsScreen(
     val uiState by viewModel.getUiState(exerciseId).collectAsStateWithLifecycle()
     val context = LocalContext.current
 
+    var personalNotesText by remember { mutableStateOf("") }
+    var selectedTimeFrame by remember { mutableStateOf(ChartTimeFrame.SIX_MONTHS) }
+    var showPlateCalculator by remember { mutableStateOf(false) }
+    var showOneRmSheet by remember { mutableStateOf(false) }
+
+    // Sync personal notes text with state when loaded
+    LaunchedEffect(uiState.personalNotes) {
+        personalNotesText = uiState.personalNotes
+    }
+
+    // Filter chart data points by selected timeframe
+    val filteredChartPoints = remember(uiState.allChartDataPoints, selectedTimeFrame) {
+        val cutoff = selectedTimeFrame.getCutoffDate()
+        if (cutoff == null) {
+            uiState.allChartDataPoints
+        } else {
+            val cutoffMillis = cutoff.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+            uiState.allChartDataPoints.filter { it.timestamp >= cutoffMillis }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -132,6 +116,24 @@ fun ExerciseDetailsScreen(
                     }
                 },
                 actions = {
+                    IconButton(
+                        onClick = { showOneRmSheet = true }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Speed,
+                            contentDescription = stringResource(R.string.one_rm_open_tooltip),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    IconButton(
+                        onClick = { showPlateCalculator = true }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Calculate,
+                            contentDescription = stringResource(R.string.plate_calc_open_tooltip),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                     IconButton(
                         onClick = { viewModel.toggleFavorite(exerciseId, uiState.isFavorite) }
                     ) {
@@ -168,10 +170,10 @@ fun ExerciseDetailsScreen(
                 .background(MaterialTheme.colorScheme.background)
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .padding(horizontal = 20.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Hero Header Card with Exercise Icon
+            // 1. Hero Header Card with Exercise Icon & Badges
             TactileCard(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier.padding(18.dp),
@@ -192,15 +194,15 @@ fun ExerciseDetailsScreen(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(8.dp))
                                     .background(MaterialTheme.colorScheme.primaryContainer)
-                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
                             ) {
                                 Text(
-                                    text = stringResource(exercise.bodypart.labelRes),
+                                    text = stringResource(exercise.type.labelRes),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                                     fontWeight = FontWeight.Bold
@@ -211,12 +213,26 @@ fun ExerciseDetailsScreen(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(8.dp))
                                     .background(MaterialTheme.colorScheme.secondaryContainer)
-                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(exercise.bodypart.labelRes),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
                             ) {
                                 Text(
                                     text = stringResource(exercise.category.labelRes),
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -225,29 +241,166 @@ fun ExerciseDetailsScreen(
                 }
             }
 
-            // History CTA Button
-            TactileButton(
-                onClick = { onNavigateToHistory(exercise.id) },
-                modifier = Modifier.fillMaxWidth()
+            // 2. Training Summary / Last Trained Card (Matching Web Version)
+            TactileCard(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = { onNavigateToHistory(exercise.id) }
             ) {
-                Icon(Icons.Default.History, contentDescription = null, tint = Color.White)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = stringResource(R.string.btn_view_history),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.CalendarMonth,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.exercises_last_trained),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = "View History",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    if (uiState.lastTrainedDate != null) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Bottom
+                        ) {
+                            Column {
+                                Text(
+                                    text = "${uiState.lastTrainedDate} (${uiState.lastTrainedRelative})",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                if (uiState.lastTrainedSummary != null) {
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = uiState.lastTrainedSummary!!,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+
+                            Text(
+                                text = "${uiState.workoutsCount} ${stringResource(R.string.nav_journal).lowercase()}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = stringResource(R.string.exercises_never_trained),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
 
-            // Description / Instructions
+            // 3. Exercise Progress Chart (Matching Web Version)
+            SportLineChart(
+                title = stringResource(R.string.chart_weight_progress),
+                dataPoints = filteredChartPoints,
+                unit = stringResource(R.string.unit_kg),
+                lineColor = MaterialTheme.colorScheme.primary,
+                selectedTimeFrame = selectedTimeFrame,
+                onTimeFrameSelected = { selectedTimeFrame = it }
+            )
+
+            // 4. Personal Notes Card (Option to add note)
+            TactileCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.EditNote,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.exercises_my_notes),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    OutlinedTextField(
+                        value = personalNotesText,
+                        onValueChange = { personalNotesText = it },
+                        placeholder = {
+                            Text(
+                                stringResource(R.string.exercises_notes_placeholder),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 3,
+                        maxLines = 6,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f),
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                viewModel.savePersonalNotes(exerciseId, personalNotesText)
+                                Toast.makeText(context, context.getString(R.string.notes_saved), Toast.LENGTH_SHORT).show()
+                            },
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            Text(stringResource(R.string.btn_save_notes), fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+
+            // 5. Instructions / Description Card
             if (!exercise.description.isNullOrBlank()) {
                 TactileCard(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(20.dp)) {
+                    Column(modifier = Modifier.padding(18.dp)) {
                         Text(
                             text = stringResource(R.string.section_instructions),
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
@@ -260,14 +413,15 @@ fun ExerciseDetailsScreen(
                 }
             }
 
-            // Aliases / Keywords
+            // 6. Aliases Card
             if (exercise.aliases.isNotEmpty()) {
                 TactileCard(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(20.dp)) {
+                    Column(modifier = Modifier.padding(18.dp)) {
                         Text(
                             text = stringResource(R.string.section_aliases),
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         FlowRow(
@@ -293,45 +447,108 @@ fun ExerciseDetailsScreen(
                 }
             }
 
-            // Links / Guides
+            // 7. External Links Card (Show external link)
             if (!exercise.links.isNullOrEmpty()) {
                 TactileCard(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(20.dp)) {
+                    Column(modifier = Modifier.padding(18.dp)) {
                         Text(
                             text = stringResource(R.string.section_links),
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        exercise.links.forEach { link ->
+                        Spacer(modifier = Modifier.height(10.dp))
+                        exercise.links.forEachIndexed { index, link ->
+                            if (index > 0) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 6.dp),
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                    .clickable {
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(link.url))
+                                        context.startActivity(intent)
+                                    }
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = link.label ?: link.url,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                IconButton(onClick = {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(link.url))
-                                    context.startActivity(intent)
-                                }) {
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
                                     Icon(
-                                        Icons.Default.OpenInNew,
-                                        contentDescription = "Open",
+                                        imageVector = Icons.Default.Link,
+                                        contentDescription = null,
                                         tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(18.dp)
+                                        modifier = Modifier.size(20.dp)
                                     )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(
+                                            text = link.label?.ifBlank { null } ?: link.url,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        if (!link.label.isNullOrBlank()) {
+                                            Text(
+                                                text = link.url,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1
+                                            )
+                                        }
+                                    }
                                 }
+
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                    contentDescription = "Open",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp)
+                                )
                             }
                         }
                     }
                 }
             }
+
+            // Full History CTA Button
+            TactileButton(
+                onClick = { onNavigateToHistory(exercise.id) },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.History, contentDescription = null, tint = Color.White)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = stringResource(R.string.btn_view_history),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        if (showPlateCalculator) {
+            val initialWeight = uiState.allChartDataPoints.lastOrNull()?.value?.toDouble() ?: 60.0
+            PlateCalculatorSheet(
+                initialWeight = initialWeight,
+                onDismissRequest = { showPlateCalculator = false }
+            )
+        }
+
+        if (showOneRmSheet) {
+            val bestWeight = uiState.maxWeightAllTime ?: uiState.allChartDataPoints.lastOrNull()?.value?.toDouble() ?: 80.0
+            OneRepMaxSheet(
+                initialWeight = bestWeight,
+                initialReps = 5,
+                onDismissRequest = { showOneRmSheet = false }
+            )
         }
     }
 }

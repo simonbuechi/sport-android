@@ -32,6 +32,10 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -44,10 +48,16 @@ import androidx.lifecycle.ViewModel
 import ch.simibu.sport.R
 import androidx.lifecycle.viewModelScope
 import ch.simibu.sport.core.designsystem.AccentGoldLight
+import ch.simibu.sport.core.designsystem.ChartDataPoint
+import ch.simibu.sport.core.designsystem.ChartTimeFrame
 import ch.simibu.sport.core.designsystem.ExerciseIcon
+import ch.simibu.sport.core.designsystem.SportLineChart
 import ch.simibu.sport.core.designsystem.SportPurple
 import ch.simibu.sport.core.designsystem.SportRuby
 import ch.simibu.sport.core.designsystem.TactileCard
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import ch.simibu.sport.core.model.Exercise
 import ch.simibu.sport.core.model.ExerciseSet
 import ch.simibu.sport.domain.repository.AuthRepository
@@ -172,6 +182,39 @@ fun ExerciseHistoryScreen(
     viewModel: ExerciseHistoryViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.getUiState(exerciseId).collectAsStateWithLifecycle()
+    var selectedTimeFrame by remember { mutableStateOf(ChartTimeFrame.SIX_MONTHS) }
+    var selectedMetricIndex by remember { mutableIntStateOf(0) }
+
+    val chartDataPoints = remember(uiState.sessions, selectedTimeFrame, selectedMetricIndex) {
+        val cutoff = selectedTimeFrame.getCutoffDate()
+        uiState.sessions
+            .mapNotNull { session ->
+                val localDate = try {
+                    LocalDate.parse(session.date.substringBefore('T'))
+                } catch (_: Exception) {
+                    null
+                } ?: return@mapNotNull null
+
+                if (cutoff != null && localDate.isBefore(cutoff)) {
+                    return@mapNotNull null
+                }
+
+                val value = if (selectedMetricIndex == 0) {
+                    session.best1RM?.toFloat()
+                } else {
+                    session.maxWeight?.toFloat()
+                } ?: return@mapNotNull null
+
+                val timestamp = localDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                val formattedDate = localDate.format(DateTimeFormatter.ofPattern("MMM d"))
+                ChartDataPoint(
+                    timestamp = timestamp,
+                    value = value,
+                    formattedDate = formattedDate
+                )
+            }
+            .sortedBy { it.timestamp }
+    }
 
     Scaffold(
         topBar = {
@@ -304,6 +347,24 @@ fun ExerciseHistoryScreen(
                         }
                     }
                 }
+            }
+
+            // Progress Chart (similar to web app)
+            item {
+                SportLineChart(
+                    title = stringResource(R.string.chart_weight_progress),
+                    dataPoints = chartDataPoints,
+                    unit = stringResource(R.string.unit_kg),
+                    lineColor = MaterialTheme.colorScheme.primary,
+                    selectedTimeFrame = selectedTimeFrame,
+                    onTimeFrameSelected = { selectedTimeFrame = it },
+                    metricTabs = listOf(
+                        stringResource(R.string.chart_metric_1rm),
+                        stringResource(R.string.metric_max_weight)
+                    ),
+                    selectedMetricIndex = selectedMetricIndex,
+                    onMetricTabSelected = { selectedMetricIndex = it }
+                )
             }
 
             item {

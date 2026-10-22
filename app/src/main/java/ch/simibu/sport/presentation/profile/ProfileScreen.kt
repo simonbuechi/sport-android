@@ -25,10 +25,12 @@ import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -37,6 +39,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -65,10 +69,11 @@ import ch.simibu.sport.data.repository.ThemeMode
 import java.util.Locale
 import kotlin.math.roundToInt
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     onNavigateToBodyHistory: () -> Unit,
-    onSignOutSuccess: () -> Unit,
+    onNavigateToSettings: () -> Unit,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -77,7 +82,24 @@ fun ProfileScreen(
     var showLogWeightDialog by remember { mutableStateOf(false) }
     var showLogMeasurementDialog by remember { mutableStateOf(false) }
 
-    Scaffold { paddingValues ->
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.profile_title)) },
+                actions = {
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = stringResource(R.string.settings_nav_button)
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        }
+    ) { paddingValues ->
         if (uiState.isLoading || uiState.profile == null) {
             Box(
                 modifier = Modifier
@@ -240,150 +262,59 @@ fun ProfileScreen(
                 }
             }
 
-            // App Settings Card
-            item {
-                val currentThemeMode by viewModel.themeMode.collectAsStateWithLifecycle()
-                val currentLanguageMode by viewModel.languageMode.collectAsStateWithLifecycle()
-
-                TactileCard(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        Text(stringResource(R.string.settings_appearance), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                        Text(stringResource(R.string.settings_appearance_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            listOf(
-                                ThemeMode.SYSTEM to stringResource(R.string.theme_system),
-                                ThemeMode.LIGHT to stringResource(R.string.theme_light),
-                                ThemeMode.DARK to stringResource(R.string.theme_dark)
-                            ).forEach { (mode, label) ->
-                                val selected = currentThemeMode == mode
-                                TactileChip(
-                                    text = label,
-                                    selected = selected,
-                                    onClick = { viewModel.setThemeMode(mode) },
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Text(stringResource(R.string.settings_language), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                        Text(stringResource(R.string.settings_language_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            listOf(
-                                LanguageMode.SYSTEM to stringResource(R.string.theme_system),
-                                LanguageMode.ENGLISH to LanguageMode.ENGLISH.nativeName,
-                                LanguageMode.GERMAN to LanguageMode.GERMAN.nativeName
-                            ).forEach { (mode, label) ->
-                                val selected = currentLanguageMode == mode
-                                TactileChip(
-                                    text = label,
-                                    selected = selected,
-                                    onClick = { viewModel.setLanguageMode(mode) },
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            listOf(
-                                LanguageMode.FRENCH to LanguageMode.FRENCH.nativeName,
-                                LanguageMode.SPANISH to LanguageMode.SPANISH.nativeName,
-                                LanguageMode.ITALIAN to LanguageMode.ITALIAN.nativeName
-                            ).forEach { (mode, label) ->
-                                val selected = currentLanguageMode == mode
-                                TactileChip(
-                                    text = label,
-                                    selected = selected,
-                                    onClick = { viewModel.setLanguageMode(mode) },
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(stringResource(R.string.pref_autofill), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                                Text(stringResource(R.string.pref_autofill_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Switch(
-                                checked = profile.settings.autoFillSets,
-                                onCheckedChange = { checked ->
-                                    viewModel.updateSettings(profile.settings.theme, checked, profile.settings.showTimer)
-                                }
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(stringResource(R.string.pref_timer_haptics), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                                Text(stringResource(R.string.pref_timer_haptics_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Switch(
-                                checked = profile.settings.showTimer,
-                                onCheckedChange = { checked ->
-                                    viewModel.updateSettings(profile.settings.theme, profile.settings.autoFillSets, checked)
-                                }
-                            )
-                        }
-                    }
+            // Body Metrics Progress Chart
+            if (profile?.weights?.isNotEmpty() == true) {
+                item {
+                    BodyMetricsChart(
+                        weights = profile.weights,
+                        heightCm = profile.height
+                    )
                 }
             }
 
-            // Sign Out Button
+            // Settings Button Card
             item {
                 TactileCard(
                     modifier = Modifier.fillMaxWidth(),
-                    onClick = {
-                        viewModel.signOut()
-                        onSignOutSuccess()
-                    }
+                    onClick = onNavigateToSettings
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp),
-                        horizontalArrangement = Arrangement.Center,
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.ExitToApp, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.btn_sign_out), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = stringResource(R.string.settings_nav_button),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = stringResource(R.string.settings_desc),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }
