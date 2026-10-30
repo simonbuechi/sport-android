@@ -8,14 +8,18 @@ data class ExerciseSet(
     val id: String = UUID.randomUUID().toString(),
     val weight: Double? = null,
     val reps: Int? = null,
-    val notes: String? = null
+    val notes: String? = null,
+    val rpe: Double? = null,
+    val rir: Double? = null
 )
 
 @Serializable
 data class WorkoutExercise(
     val exerciseId: String = "",
     val sets: List<ExerciseSet> = emptyList(),
-    val note: String? = null
+    val note: String? = null,
+    val supersetId: String? = null,
+    val supersetNote: String? = null
 )
 
 @Serializable

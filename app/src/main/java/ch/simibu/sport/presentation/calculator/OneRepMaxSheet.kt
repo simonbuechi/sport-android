@@ -70,6 +70,7 @@ import ch.simibu.sport.core.designsystem.tactileClickable
 fun OneRepMaxSheet(
     initialWeight: Double = 80.0,
     initialReps: Int = 5,
+    allowPlateCalculator: Boolean = false,
     onDismissRequest: () -> Unit,
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 ) {
@@ -413,30 +414,32 @@ fun OneRepMaxSheet(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    if (allowPlateCalculator) {
+                        Spacer(modifier = Modifier.height(10.dp))
 
-                    // Quick action: Open Plate Calculator for 1RM
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
-                            .tactileClickable { plateCalcWeight = result.rounded1RM }
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Calculate,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = stringResource(R.string.one_rm_load_plates_tooltip),
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                        // Quick action: Open Plate Calculator for 1RM
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
+                                .tactileClickable { plateCalcWeight = result.rounded1RM }
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Calculate,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = stringResource(R.string.one_rm_load_plates_tooltip),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         }
                     }
                 }
@@ -487,10 +490,15 @@ fun OneRepMaxSheet(
                                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
                                 shape = RoundedCornerShape(12.dp)
                             )
-                            .clickable {
-                                // Tapping row opens Plate Calculator for this weight!
-                                plateCalcWeight = row.roundedWeight
-                            }
+                            .then(
+                                if (allowPlateCalculator) {
+                                    Modifier.clickable {
+                                        plateCalcWeight = row.roundedWeight
+                                    }
+                                } else {
+                                    Modifier
+                                }
+                            )
                             .padding(horizontal = 14.dp, vertical = 10.dp)
                     ) {
                         Row(
@@ -539,13 +547,15 @@ fun OneRepMaxSheet(
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Icon(
-                                    imageVector = Icons.Default.Calculate,
-                                    contentDescription = stringResource(R.string.one_rm_load_plates_tooltip),
-                                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                                    modifier = Modifier.size(18.dp)
-                                )
+                                if (allowPlateCalculator) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.Calculate,
+                                        contentDescription = stringResource(R.string.one_rm_load_plates_tooltip),
+                                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -567,8 +577,8 @@ fun OneRepMaxSheet(
         }
     }
 
-    // Embedded Plate Calculator when a row is clicked
-    if (plateCalcWeight != null) {
+    // Embedded Plate Calculator when a row is clicked (only when plate calculator is allowed)
+    if (allowPlateCalculator && plateCalcWeight != null) {
         PlateCalculatorSheet(
             initialWeight = plateCalcWeight!!,
             onDismissRequest = { plateCalcWeight = null }

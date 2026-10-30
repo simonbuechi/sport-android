@@ -8,9 +8,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material.icons.filled.Speed
@@ -48,6 +48,7 @@ import ch.simibu.sport.presentation.journal.WorkoutFormScreen
 import ch.simibu.sport.presentation.profile.BodyHistoryScreen
 import ch.simibu.sport.presentation.profile.ProfileScreen
 import ch.simibu.sport.presentation.profile.SettingsScreen
+import ch.simibu.sport.presentation.templates.ProgramFormScreen
 import ch.simibu.sport.presentation.templates.TemplateFormScreen
 import ch.simibu.sport.presentation.templates.TemplatesScreen
 
@@ -63,7 +64,7 @@ data class BottomNavItem(
 
 val bottomNavItems = listOf(
     BottomNavItem(DashboardDestination, R.string.nav_home, Icons.Default.Speed),
-    BottomNavItem(JournalDestination, R.string.nav_journal, Icons.Default.MenuBook),
+    BottomNavItem(JournalDestination, R.string.nav_journal, Icons.AutoMirrored.Filled.MenuBook),
     BottomNavItem(ExercisesDestination, R.string.nav_exercises, Icons.Default.FitnessCenter),
     BottomNavItem(TemplatesDestination, R.string.nav_routines, Icons.Default.Bookmark),
     BottomNavItem(ProfileDestination, R.string.nav_profile, Icons.Default.Person)
@@ -297,6 +298,12 @@ fun AppNavigation(
                     },
                     onNavigateToEditTemplate = { templateId ->
                         navController.navigate(TemplateFormDestination(id = templateId))
+                    },
+                    onNavigateToNewProgram = {
+                        navController.navigate(ProgramFormDestination())
+                    },
+                    onNavigateToEditProgram = { programId ->
+                        navController.navigate(ProgramFormDestination(id = programId))
                     }
                 )
             }
@@ -306,6 +313,15 @@ fun AppNavigation(
                 val destination = backStackEntry.toRoute<TemplateFormDestination>()
                 TemplateFormScreen(
                     templateId = destination.id,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            // Program Form
+            composable<ProgramFormDestination> { backStackEntry ->
+                val destination = backStackEntry.toRoute<ProgramFormDestination>()
+                ProgramFormScreen(
+                    programId = destination.id,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }

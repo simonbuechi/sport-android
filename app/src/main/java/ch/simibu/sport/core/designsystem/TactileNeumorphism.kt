@@ -23,7 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -51,51 +51,55 @@ fun Modifier.tactileShadow(
     highlightColor: Color = Color.White.copy(alpha = 0.8f),
     shadowColor: Color = Color.Black.copy(alpha = 0.08f),
     spread: Dp = 4.dp
-): Modifier = drawBehind {
-    if (elevation == TactileElevation.FLAT) return@drawBehind
+): Modifier = drawWithCache {
+    if (elevation == TactileElevation.FLAT) {
+        return@drawWithCache onDrawBehind {}
+    }
 
     val spreadPx = spread.toPx()
+    val cornerRadiusPx = 16.dp.toPx()
     val isPressed = elevation == TactileElevation.PRESSED
+    val offsetDistance = if (isPressed) spreadPx * 0.4f else spreadPx * 0.8f
 
-    drawIntoCanvas { canvas ->
-        val shadowPaint = Paint().asFrameworkPaint().apply {
-            color = shadowColor.toArgb()
-            maskFilter = android.graphics.BlurMaskFilter(
-                spreadPx * if (isPressed) 0.5f else 1.2f,
-                android.graphics.BlurMaskFilter.Blur.NORMAL
+    val shadowPaint = Paint().asFrameworkPaint().apply {
+        color = shadowColor.toArgb()
+        maskFilter = android.graphics.BlurMaskFilter(
+            (spreadPx * if (isPressed) 0.5f else 1.2f).coerceAtLeast(0.5f),
+            android.graphics.BlurMaskFilter.Blur.NORMAL
+        )
+    }
+    val highlightPaint = Paint().asFrameworkPaint().apply {
+        color = highlightColor.toArgb()
+        maskFilter = android.graphics.BlurMaskFilter(
+            (spreadPx * if (isPressed) 0.5f else 1.0f).coerceAtLeast(0.5f),
+            android.graphics.BlurMaskFilter.Blur.NORMAL
+        )
+    }
+
+    onDrawBehind {
+        drawIntoCanvas { canvas ->
+            // Bottom-right shadow
+            canvas.nativeCanvas.drawRoundRect(
+                offsetDistance,
+                offsetDistance,
+                size.width + offsetDistance,
+                size.height + offsetDistance,
+                cornerRadiusPx,
+                cornerRadiusPx,
+                shadowPaint
+            )
+
+            // Top-left highlight
+            canvas.nativeCanvas.drawRoundRect(
+                -offsetDistance * 0.7f,
+                -offsetDistance * 0.7f,
+                size.width - offsetDistance * 0.7f,
+                size.height - offsetDistance * 0.7f,
+                cornerRadiusPx,
+                cornerRadiusPx,
+                highlightPaint
             )
         }
-        val highlightPaint = Paint().asFrameworkPaint().apply {
-            color = highlightColor.toArgb()
-            maskFilter = android.graphics.BlurMaskFilter(
-                spreadPx * if (isPressed) 0.5f else 1.0f,
-                android.graphics.BlurMaskFilter.Blur.NORMAL
-            )
-        }
-
-        val offsetDistance = if (isPressed) spreadPx * 0.4f else spreadPx * 0.8f
-
-        // Bottom-right shadow
-        canvas.nativeCanvas.drawRoundRect(
-            offsetDistance,
-            offsetDistance,
-            size.width + offsetDistance,
-            size.height + offsetDistance,
-            16.dp.toPx(),
-            16.dp.toPx(),
-            shadowPaint
-        )
-
-        // Top-left highlight
-        canvas.nativeCanvas.drawRoundRect(
-            -offsetDistance * 0.7f,
-            -offsetDistance * 0.7f,
-            size.width - offsetDistance * 0.7f,
-            size.height - offsetDistance * 0.7f,
-            16.dp.toPx(),
-            16.dp.toPx(),
-            highlightPaint
-        )
     }
 }
 

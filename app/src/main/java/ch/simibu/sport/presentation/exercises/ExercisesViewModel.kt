@@ -11,10 +11,15 @@ import ch.simibu.sport.domain.repository.AuthRepository
 import ch.simibu.sport.domain.repository.ExerciseRepository
 import ch.simibu.sport.domain.repository.UserProfileRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -42,6 +47,7 @@ data class ExercisesUiState(
                 (if (searchQuery.isNotBlank()) 1 else 0)
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class ExercisesViewModel @Inject constructor(
     private val exerciseRepository: ExerciseRepository,
@@ -49,7 +55,8 @@ class ExercisesViewModel @Inject constructor(
     private val authRepository: AuthRepository
 ) : ViewModel() {
 
-    private val currentUserId = authRepository.currentUserId
+    private val currentUserId: String?
+        get() = authRepository.currentUserId
 
     private val _searchQuery = MutableStateFlow("")
     private val _selectedType = MutableStateFlow<ExerciseType?>(null)
@@ -75,9 +82,14 @@ class ExercisesViewModel @Inject constructor(
         FilterCriteria(query, type, bodyPart, category, onlyFavorites)
     }
 
+    private val userProfileFlow = authRepository.currentUser.flatMapLatest { user ->
+        val uid = user?.uid
+        if (uid != null) userProfileRepository.getUserProfile(uid) else flowOf(null)
+    }
+
     val uiState: StateFlow<ExercisesUiState> = combine(
         exerciseRepository.getExercises(),
-        if (currentUserId != null) userProfileRepository.getUserProfile(currentUserId) else kotlinx.coroutines.flow.flowOf(null),
+        userProfileFlow,
         filtersFlow
     ) { exercises, userProfile, filters ->
         val marked = userProfile?.markedExercises ?: emptyMap()
@@ -111,7 +123,7 @@ class ExercisesViewModel @Inject constructor(
             markedExercises = marked,
             isLoading = false
         )
-    }.stateIn(
+    }.flowOn(Dispatchers.Default).stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = ExercisesUiState()

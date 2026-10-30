@@ -77,10 +77,17 @@ object MuscleRecoveryCalculator {
                     }
 
                     // Volume-weighted time decay:
-                    // 1 to 5 star intensity factor (default 3)
-                    val intensity = workout.intensity ?: 3
-                    val intensityMultiplier = 0.8 + (intensity * 0.1)
-                    val trainingStress = sessionSetsForMuscle * intensityMultiplier
+                    // Factor in set-level exertion (RPE) if available; fallback to legacy intensity or neutral 1.0
+                    val muscleSets = workout.exercises
+                        .filter { exerciseMap[it.exerciseId]?.bodypart == bodyPart }
+                        .flatMap { it.sets }
+                    val avgRpe = muscleSets.mapNotNull { it.rpe }.average().takeIf { !it.isNaN() }
+                    val exertionMultiplier = when {
+                        avgRpe != null -> (0.6 + (avgRpe * 0.05)).coerceIn(0.8, 1.25)
+                        workout.intensity != null -> 0.8 + (workout.intensity * 0.1)
+                        else -> 1.0
+                    }
+                    val trainingStress = sessionSetsForMuscle * exertionMultiplier
 
                     // Recovery hours scale between 48h to 72h
                     val requiredHours = (40.0 + (trainingStress * 3.5)).coerceIn(48.0, 72.0)

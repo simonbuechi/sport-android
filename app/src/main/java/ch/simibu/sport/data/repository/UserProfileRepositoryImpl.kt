@@ -7,6 +7,7 @@ import ch.simibu.sport.core.model.UserSettings
 import ch.simibu.sport.core.model.WeightEntry
 import ch.simibu.sport.domain.repository.UserProfileRepository
 import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
@@ -19,10 +20,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.tasks.await
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import java.util.TimeZone
+import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -90,7 +88,11 @@ class UserProfileRepositoryImpl @Inject constructor(
             theme = settingsMap?.get("theme") as? String ?: "system",
             autoFillSets = settingsMap?.get("autoFillSets") as? Boolean ?: true,
             showTimer = settingsMap?.get("showTimer") as? Boolean ?: true,
-            takeWorkoutTime = settingsMap?.get("takeWorkoutTime") as? Boolean ?: true
+            takeWorkoutTime = settingsMap?.get("takeWorkoutTime") as? Boolean ?: true,
+            enableSupersets = settingsMap?.get("enableSupersets") as? Boolean ?: false,
+            enableExertionTracking = settingsMap?.get("enableExertionTracking") as? Boolean ?: false,
+            exertionMode = settingsMap?.get("exertionMode") as? String ?: "rpe",
+            enableHealthConnect = settingsMap?.get("enableHealthConnect") as? Boolean ?: false
         )
 
         return UserProfile(
@@ -106,11 +108,7 @@ class UserProfileRepositoryImpl @Inject constructor(
         )
     }
 
-    private fun getCurrentIsoTimestamp(): String {
-        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
-        sdf.timeZone = TimeZone.getTimeZone("UTC")
-        return sdf.format(Date())
-    }
+    private fun getCurrentIsoTimestamp(): String = Instant.now().toString()
 
     private val userProfileFlowMap = ConcurrentHashMap<String, SharedFlow<UserProfile?>>()
 
@@ -168,7 +166,11 @@ class UserProfileRepositoryImpl @Inject constructor(
                     "theme" to profile.settings.theme,
                     "autoFillSets" to profile.settings.autoFillSets,
                     "showTimer" to profile.settings.showTimer,
-                    "takeWorkoutTime" to profile.settings.takeWorkoutTime
+                    "takeWorkoutTime" to profile.settings.takeWorkoutTime,
+                    "enableSupersets" to profile.settings.enableSupersets,
+                    "enableExertionTracking" to profile.settings.enableExertionTracking,
+                    "exertionMode" to profile.settings.exertionMode,
+                    "enableHealthConnect" to profile.settings.enableHealthConnect
                 ),
                 "updatedAt" to getCurrentIsoTimestamp()
             )
@@ -233,16 +235,29 @@ class UserProfileRepositoryImpl @Inject constructor(
         notes: String?
     ): Result<Unit> {
         return try {
-            val updates = hashMapOf<String, Any>()
-            if (favorite != null) {
-                updates["markedExercises.$exerciseId.favorite"] = favorite
+            val docRef = firestore.collection("users").document(userId)
+            val updatedAt = getCurrentIsoTimestamp()
+            when {
+                favorite != null && notes != null -> {
+                    docRef.update(
+                        FieldPath.of("markedExercises", exerciseId, "favorite"), favorite,
+                        FieldPath.of("markedExercises", exerciseId, "notes"), notes,
+                        FieldPath.of("updatedAt"), updatedAt
+                    ).await()
+                }
+                favorite != null -> {
+                    docRef.update(
+                        FieldPath.of("markedExercises", exerciseId, "favorite"), favorite,
+                        FieldPath.of("updatedAt"), updatedAt
+                    ).await()
+                }
+                notes != null -> {
+                    docRef.update(
+                        FieldPath.of("markedExercises", exerciseId, "notes"), notes,
+                        FieldPath.of("updatedAt"), updatedAt
+                    ).await()
+                }
             }
-            if (notes != null) {
-                updates["markedExercises.$exerciseId.notes"] = notes
-            }
-            updates["updatedAt"] = getCurrentIsoTimestamp()
-
-            firestore.collection("users").document(userId).update(updates).await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

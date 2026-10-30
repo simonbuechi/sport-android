@@ -9,24 +9,31 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import ch.simibu.sport.core.di.ApplicationScope
+import ch.simibu.sport.data.health.HealthConnectManager
+import ch.simibu.sport.domain.repository.UserProfileRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.shareIn
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
+import javax.inject.Provider
 import javax.inject.Singleton
 
 @Singleton
 class WorkoutRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
-    @ApplicationScope private val scope: CoroutineScope
+    @ApplicationScope private val scope: CoroutineScope,
+    private val healthConnectManager: HealthConnectManager,
+    private val userProfileRepositoryProvider: Provider<UserProfileRepository>
 ) : WorkoutRepository {
 
     @Suppress("UNCHECKED_CAST")
@@ -39,29 +46,17 @@ class WorkoutRepositoryImpl @Inject constructor(
             val map = item as? Map<String, Any?> ?: return@mapNotNull null
             val exerciseId = map["exerciseId"] as? String ?: return@mapNotNull null
             val note = map["note"] as? String
+            val supersetId = map["supersetId"] as? String
+            val supersetNote = map["supersetNote"] as? String
             val setsRaw = map["sets"] as? List<*>
-            val sets = setsRaw?.mapNotNull { setItem ->
-                val setMap = setItem as? Map<String, Any?> ?: return@mapNotNull null
-                val weight = when (val w = setMap["weight"]) {
-                    is Number -> w.toDouble()
-                    else -> null
-                }
-                val reps = when (val r = setMap["reps"]) {
-                    is Number -> r.toInt()
-                    else -> null
-                }
-                ExerciseSet(
-                    id = setMap["id"] as? String ?: UUID.randomUUID().toString(),
-                    weight = weight,
-                    reps = reps,
-                    notes = setMap["notes"] as? String
-                )
-            } ?: emptyList()
+            val sets = FirestoreSetMapper.parseSets(setsRaw)
 
             WorkoutExercise(
                 exerciseId = exerciseId,
                 sets = sets,
-                note = note
+                note = note,
+                supersetId = supersetId,
+                supersetNote = supersetNote
             )
         } ?: emptyList()
 
@@ -82,18 +77,14 @@ class WorkoutRepositoryImpl @Inject constructor(
 
     private fun mapWorkoutToMap(workout: Workout): Map<String, Any?> {
         val exercisesList = workout.exercises.map { we ->
-            hashMapOf(
+            val exMap = hashMapOf<String, Any?>(
                 "exerciseId" to we.exerciseId,
                 "note" to we.note,
-                "sets" to we.sets.map { s ->
-                    hashMapOf(
-                        "id" to s.id,
-                        "weight" to s.weight,
-                        "reps" to s.reps,
-                        "notes" to s.notes
-                    )
-                }
+                "sets" to FirestoreSetMapper.setsToMaps(we.sets)
             )
+            if (we.supersetId != null) exMap["supersetId"] = we.supersetId
+            if (we.supersetNote != null) exMap["supersetNote"] = we.supersetNote
+            exMap
         }
 
         return hashMapOf(
@@ -150,6 +141,28 @@ class WorkoutRepositoryImpl @Inject constructor(
         }
     }
 
+    private suspend fun syncToHealthConnectIfEnabled(workout: Workout) {
+        try {
+            val profile = userProfileRepositoryProvider.get().getUserProfile(workout.userId).firstOrNull()
+            if (profile?.settings?.enableHealthConnect == true && healthConnectManager.isAvailable) {
+                healthConnectManager.exportWorkout(workout)
+            }
+        } catch (_: Exception) {
+            // Silently ignore to avoid blocking Firestore save
+        }
+    }
+
+    private suspend fun deleteFromHealthConnectIfEnabled(userId: String, workoutId: String) {
+        try {
+            val profile = userProfileRepositoryProvider.get().getUserProfile(userId).firstOrNull()
+            if (profile?.settings?.enableHealthConnect == true && healthConnectManager.isAvailable) {
+                healthConnectManager.deleteWorkout(workoutId)
+            }
+        } catch (_: Exception) {
+            // Silently ignore
+        }
+    }
+
     override suspend fun createWorkout(workout: Workout): Result<String> {
         return try {
             val map = mapWorkoutToMap(workout)
@@ -158,6 +171,8 @@ class WorkoutRepositoryImpl @Inject constructor(
                 .collection("activities")
                 .add(map)
                 .await()
+            val newWorkout = workout.copy(id = docRef.id)
+            syncToHealthConnectIfEnabled(newWorkout)
             Result.success(docRef.id)
         } catch (e: Exception) {
             Result.failure(e)
@@ -173,6 +188,7 @@ class WorkoutRepositoryImpl @Inject constructor(
                 .document(workout.id)
                 .update(map)
                 .await()
+            syncToHealthConnectIfEnabled(workout)
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -187,6 +203,7 @@ class WorkoutRepositoryImpl @Inject constructor(
                 .document(workoutId)
                 .delete()
                 .await()
+            deleteFromHealthConnectIfEnabled(userId, workoutId)
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

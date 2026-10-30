@@ -39,6 +39,9 @@ object TemplatesDestination
 data class TemplateFormDestination(val id: String? = null)
 
 @Serializable
+data class ProgramFormDestination(val id: String? = null)
+
+@Serializable
 object ProfileDestination
 
 @Serializable

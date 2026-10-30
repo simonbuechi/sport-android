@@ -11,16 +11,19 @@ import ch.simibu.sport.domain.repository.UserProfileRepository
 import ch.simibu.sport.domain.repository.WorkoutRepository
 import ch.simibu.sport.domain.usecase.WorkoutCalculationUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 
 data class ExerciseDetailsUiState(
@@ -46,11 +49,20 @@ class ExerciseDetailsViewModel @Inject constructor(
     private val calculationUseCase: WorkoutCalculationUseCase
 ) : ViewModel() {
 
-    private val currentUserId = authRepository.currentUserId
+    private val currentUserId: String?
+        get() = authRepository.currentUserId
+    private val uiStateCache = ConcurrentHashMap<String, StateFlow<ExerciseDetailsUiState>>()
 
     fun getUiState(exerciseId: String): StateFlow<ExerciseDetailsUiState> {
-        val workoutsFlow = if (currentUserId != null) {
-            workoutRepository.getWorkouts(currentUserId)
+        val uid = currentUserId ?: "guest"
+        return uiStateCache.computeIfAbsent("$uid:$exerciseId") {
+            createUiStateFlow(exerciseId, currentUserId)
+        }
+    }
+
+    private fun createUiStateFlow(exerciseId: String, uid: String?): StateFlow<ExerciseDetailsUiState> {
+        val workoutsFlow = if (uid != null) {
+            workoutRepository.getWorkouts(uid)
         } else {
             kotlinx.coroutines.flow.flowOf(emptyList())
         }
@@ -58,7 +70,7 @@ class ExerciseDetailsViewModel @Inject constructor(
         return combine(
             exerciseRepository.getExercise(exerciseId),
             workoutsFlow,
-            if (currentUserId != null) userProfileRepository.getUserProfile(currentUserId) else kotlinx.coroutines.flow.flowOf(null)
+            if (uid != null) userProfileRepository.getUserProfile(uid) else kotlinx.coroutines.flow.flowOf(null)
         ) { exercise, workouts, profile ->
             val marked = profile?.markedExercises?.get(exerciseId)
             val isFav = marked?.favorite == true
@@ -157,7 +169,7 @@ class ExerciseDetailsViewModel @Inject constructor(
                 best1RMAllTime = best1RMAllTime,
                 isLoading = false
             )
-        }.stateIn(
+        }.flowOn(Dispatchers.Default).stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = ExerciseDetailsUiState()

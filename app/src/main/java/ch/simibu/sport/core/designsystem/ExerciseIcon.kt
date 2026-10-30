@@ -31,6 +31,7 @@ import coil3.request.crossfade
 object ExerciseIconResolver {
     @Volatile
     private var assetFiles: Set<String>? = null
+    private val SLUG_REGEX = Regex("[^a-z0-9]+")
 
     fun getAssetPath(context: Context, iconUrl: String?, exerciseName: String): String? {
         val files = assetFiles ?: synchronized(this) {
@@ -61,7 +62,7 @@ object ExerciseIconResolver {
 
         // 2. Try slugified exerciseName
         val slug = exerciseName.trim().lowercase()
-            .replace(Regex("[^a-z0-9]+"), "-")
+            .replace(SLUG_REGEX, "-")
             .trim('-') + ".webp"
 
         if (files.contains(slug)) {

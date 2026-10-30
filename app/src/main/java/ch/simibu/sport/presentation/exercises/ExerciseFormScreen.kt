@@ -21,6 +21,7 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -28,18 +29,21 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import ch.simibu.sport.R
 import ch.simibu.sport.core.designsystem.TactileButton
 import ch.simibu.sport.core.designsystem.TactileCard
 import ch.simibu.sport.core.model.BodyPart
@@ -129,8 +133,10 @@ fun ExerciseFormScreen(
     var bodyPartExpanded by remember { mutableStateOf(false) }
     var categoryExpanded by remember { mutableStateOf(false) }
 
-    if (uiState.isSaved) {
-        onNavigateBack()
+    LaunchedEffect(uiState.isSaved) {
+        if (uiState.isSaved) {
+            onNavigateBack()
+        }
     }
 
     Scaffold(
@@ -176,14 +182,14 @@ fun ExerciseFormScreen(
                         onExpandedChange = { bodyPartExpanded = it }
                     ) {
                         OutlinedTextField(
-                            value = uiState.bodyPart.displayName,
+                            value = stringResource(uiState.bodyPart.labelRes),
                             onValueChange = {},
                             readOnly = true,
-                            label = { Text("Body Part") },
+                            label = { Text(stringResource(R.string.filter_tab_body_part)) },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = bodyPartExpanded) },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .menuAnchor(),
+                                .menuAnchor(MenuAnchorType.PrimaryNotEditable),
                             shape = RoundedCornerShape(12.dp)
                         )
                         ExposedDropdownMenu(
@@ -192,7 +198,7 @@ fun ExerciseFormScreen(
                         ) {
                             BodyPart.entries.forEach { part ->
                                 DropdownMenuItem(
-                                    text = { Text(part.displayName) },
+                                    text = { Text(stringResource(part.labelRes)) },
                                     onClick = {
                                         viewModel.onBodyPartChange(part)
                                         bodyPartExpanded = false
@@ -210,14 +216,14 @@ fun ExerciseFormScreen(
                         onExpandedChange = { categoryExpanded = it }
                     ) {
                         OutlinedTextField(
-                            value = uiState.category.displayName,
+                            value = stringResource(uiState.category.labelRes),
                             onValueChange = {},
                             readOnly = true,
-                            label = { Text("Category / Equipment") },
+                            label = { Text(stringResource(R.string.filter_tab_category)) },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .menuAnchor(),
+                                .menuAnchor(MenuAnchorType.PrimaryNotEditable),
                             shape = RoundedCornerShape(12.dp)
                         )
                         ExposedDropdownMenu(
@@ -226,7 +232,7 @@ fun ExerciseFormScreen(
                         ) {
                             ExerciseCategory.entries.forEach { cat ->
                                 DropdownMenuItem(
-                                    text = { Text(cat.displayName) },
+                                    text = { Text(stringResource(cat.labelRes)) },
                                     onClick = {
                                         viewModel.onCategoryChange(cat)
                                         categoryExpanded = false

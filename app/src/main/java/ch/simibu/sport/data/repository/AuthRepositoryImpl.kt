@@ -10,6 +10,7 @@ import com.google.firebase.auth.UserProfileChangeRequest
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -17,7 +18,8 @@ import javax.inject.Singleton
 @Singleton
 class AuthRepositoryImpl @Inject constructor(
     private val auth: FirebaseAuth,
-    private val userProfileRepository: UserProfileRepository
+    private val userProfileRepository: UserProfileRepository,
+    private val activeWorkoutManager: ActiveWorkoutManager
 ) : AuthRepository {
 
     override val currentUser: Flow<FirebaseUser?> = callbackFlow {
@@ -71,15 +73,17 @@ class AuthRepositoryImpl @Inject constructor(
             val authResult = auth.signInWithCredential(credential).await()
             val user = authResult.user
             if (user != null) {
-                val existing = userProfileRepository.getUserProfile(user.uid)
+                val existing = userProfileRepository.getUserProfile(user.uid).firstOrNull()
                 // If profile doesn't exist, create initial profile
-                userProfileRepository.createUserProfile(
-                    UserProfile(
-                        uid = user.uid,
-                        name = user.displayName ?: "Athlete",
-                        notes = ""
+                if (existing == null) {
+                    userProfileRepository.createUserProfile(
+                        UserProfile(
+                            uid = user.uid,
+                            name = user.displayName ?: "Athlete",
+                            notes = ""
+                        )
                     )
-                )
+                }
             }
             Result.success(Unit)
         } catch (e: Exception) {
@@ -97,6 +101,7 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override fun signOut() {
+        activeWorkoutManager.clearSession()
         auth.signOut()
     }
 }

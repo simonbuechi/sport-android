@@ -72,8 +72,6 @@ import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.launch
 
-private const val WEB_CLIENT_ID = "398990731473-j6qt1b626gkqp40vo04l5ovl3jh4f17p.apps.googleusercontent.com"
-
 @Composable
 fun AuthScreen(
     onAuthSuccess: () -> Unit,
@@ -82,6 +80,7 @@ fun AuthScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val webClientId = stringResource(R.string.default_web_client_id)
     val coroutineScope = rememberCoroutineScope()
 
     var passwordVisible by remember { mutableStateOf(false) }
@@ -97,7 +96,7 @@ fun AuthScreen(
     fun launchGoogleSignIn() {
         val googleIdOption = GetGoogleIdOption.Builder()
             .setFilterByAuthorizedAccounts(false)
-            .setServerClientId(WEB_CLIENT_ID)
+            .setServerClientId(webClientId)
             .setAutoSelectEnabled(false)
             .build()
 

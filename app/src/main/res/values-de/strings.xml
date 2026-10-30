@@ -97,6 +97,8 @@
     <string name="routines_title">Trainingsroutinen</string>
     <string name="btn_create_routine">Routine erstellen</string>
     <string name="btn_start_routine">Routine starten</string>
+    <string name="btn_start_workout">Training starten</string>
+    <string name="program_days_label">Tage</string>
     <string name="btn_edit_routine">Routine bearbeiten</string>
     <string name="edit_routine">Routine bearbeiten</string>
     <string name="new_routine">Neue Routine</string>
@@ -217,6 +219,7 @@
 
     <!-- Plate Calculator -->
     <string name="plate_calc_title">Hantelscheiben-Rechner</string>
+    <string name="plate_calc_short">Scheiben</string>
     <string name="plate_calc_target_weight">Zielgewicht</string>
     <string name="plate_calc_bar_weight">Stangengewicht</string>
     <string name="plate_calc_weight_per_side">Pro Seite: %1$.2f kg</string>
@@ -266,4 +269,38 @@
     <string name="one_rm_zone_endurance">Kraftausdauer</string>
     <string name="one_rm_zone_warmup">Aufwärmen</string>
     <string name="one_rm_open_tooltip">1RM-Rechner</string>
+
+    <!-- Supersets and Exertion (RPE/RIR) -->
+    <string name="supersets_setting_title">Supersätze aktivieren</string>
+    <string name="supersets_setting_desc">Erlaubt das Verknüpfen aufeinanderfolgender Übungen zu Supersätzen mit Notizen.</string>
+    <string name="exertion_setting_title">Anstrengung erfassen (RPE / RIR)</string>
+    <string name="exertion_setting_desc">Erfasse die Intensität pro Satz mit RPE (Rate of Perceived Exertion) oder RIR (Reps In Reserve).</string>
+    <string name="exertion_mode_title">Bevorzugte Metrik</string>
+    <string name="exertion_mode_rpe">RPE</string>
+    <string name="exertion_mode_rir">RIR</string>
+    <string name="exertion_rpe_full">Rate of Perceived Exertion (Skala 1–10)</string>
+    <string name="exertion_rir_full">Reps In Reserve (Wiederholungen im Tank)</string>
+    <string name="supersets_title">Supersatz %1$s</string>
+    <string name="supersets_link_with_next">Mit nächster gruppieren</string>
+    <string name="supersets_unlink">Gruppierung aufheben</string>
+    <string name="supersets_add_note">Supersatz-Notiz hinzufügen</string>
+    <string name="supersets_edit_note">Notiz bearbeiten</string>
+    <string name="supersets_note_placeholder">Hinweise/Pausenzeiten für diesen Supersatz…</string>
+    <string name="supersets_note_dialog_title">Supersatz-Notiz</string>
+
+    <!-- Health Connect -->
+    <string name="health_connect_title">Health Connect</string>
+    <string name="health_connect_desc">Synchronisiere deine Trainings mit Google Health Connect, damit Google Fit, Samsung Health und andere Apps darauf zugreifen können.</string>
+    <string name="health_connect_sync_switch">Trainings synchronisieren</string>
+    <string name="health_connect_sync_past">Bisherige Trainings synchronisieren</string>
+    <string name="health_connect_syncing">Trainings werden mit Health Connect synchronisiert…</string>
+    <string name="health_connect_synced_success">%1$d Trainings mit Health Connect synchronisiert</string>
+    <string name="health_connect_permission_denied">Health Connect Schreibberechtigung wurde verweigert.</string>
+    <string name="health_connect_unavailable">Health Connect ist auf diesem Gerät nicht verfügbar.</string>
+    <string name="health_connect_update_required">Health Connect muss über Google Play installiert oder aktualisiert werden.</string>
+    <string name="health_connect_open_play_store">Installieren / Aktualisieren</string>
+    <string name="notification_channel_workout_name">Laufendes Training</string>
+    <string name="notification_channel_workout_desc">Zeigt den Status an, während ein Training aktiv ist.</string>
+    <string name="notification_workout_in_progress">Training läuft</string>
+    <string name="notification_workout_subtext">%1$d Übungen • %2$s</string>
 </resources>

@@ -97,6 +97,8 @@
     <string name="routines_title">Rutinas de entrenamiento</string>
     <string name="btn_create_routine">Crear rutina</string>
     <string name="btn_start_routine">Iniciar rutina</string>
+    <string name="btn_start_workout">Iniciar entrenamiento</string>
+    <string name="program_days_label">días</string>
     <string name="btn_edit_routine">Editar rutina</string>
     <string name="edit_routine">Editar rutina</string>
     <string name="new_routine">Nueva rutina</string>
@@ -217,6 +219,7 @@
 
     <!-- Plate Calculator -->
     <string name="plate_calc_title">Calculadora de discos</string>
+    <string name="plate_calc_short">Discos</string>
     <string name="plate_calc_target_weight">Peso objetivo</string>
     <string name="plate_calc_bar_weight">Peso de la barra</string>
     <string name="plate_calc_weight_per_side">Por lado: %1$.2f kg</string>
@@ -266,4 +269,38 @@
     <string name="one_rm_zone_endurance">Resistencia</string>
     <string name="one_rm_zone_warmup">Calentamiento</string>
     <string name="one_rm_open_tooltip">Calculadora 1RM</string>
+
+    <!-- Supersets and Exertion (RPE/RIR) -->
+    <string name="supersets_setting_title">Habilitar superseries</string>
+    <string name="supersets_setting_desc">Permitir vincular ejercicios consecutivos en grupos de superseries con notas.</string>
+    <string name="exertion_setting_title">Seguimiento del esfuerzo (RPE / RIR)</string>
+    <string name="exertion_setting_desc">Registra la intensidad por serie usando RPE o RIR.</string>
+    <string name="exertion_mode_title">Métrica preferida</string>
+    <string name="exertion_mode_rpe">RPE</string>
+    <string name="exertion_mode_rir">RIR</string>
+    <string name="exertion_rpe_full">Escala de esfuerzo percibido (1–10)</string>
+    <string name="exertion_rir_full">Repeticiones en recámara (RIR)</string>
+    <string name="supersets_title">Superserie %1$s</string>
+    <string name="supersets_link_with_next">Agrupar con el siguiente</string>
+    <string name="supersets_unlink">Desagrupar</string>
+    <string name="supersets_add_note">Añadir nota de superserie</string>
+    <string name="supersets_edit_note">Editar nota</string>
+    <string name="supersets_note_placeholder">Indicaciones/descanso para esta superserie…</string>
+    <string name="supersets_note_dialog_title">Nota de superserie</string>
+
+    <!-- Health Connect -->
+    <string name="health_connect_title">Health Connect</string>
+    <string name="health_connect_desc">Sincroniza tus entrenamientos con Google Health Connect para que Google Fit, Samsung Health y otras apps puedan acceder a ellos.</string>
+    <string name="health_connect_sync_switch">Sincronizar entrenamientos</string>
+    <string name="health_connect_sync_past">Sincronizar entrenamientos anteriores</string>
+    <string name="health_connect_syncing">Sincronizando entrenamientos con Health Connect…</string>
+    <string name="health_connect_synced_success">%1$d entrenamientos sincronizados con Health Connect</string>
+    <string name="health_connect_permission_denied">Se denegó el permiso de escritura de Health Connect.</string>
+    <string name="health_connect_unavailable">Health Connect no está disponible en este dispositivo.</string>
+    <string name="health_connect_update_required">Health Connect necesita ser instalado o actualizado desde Google Play.</string>
+    <string name="health_connect_open_play_store">Instalar / Actualizar</string>
+    <string name="notification_channel_workout_name">Entrenamiento en curso</string>
+    <string name="notification_channel_workout_desc">Muestra el estado mientras una sesión de entrenamiento está activa.</string>
+    <string name="notification_workout_in_progress">Entrenamiento en curso</string>
+    <string name="notification_workout_subtext">%1$d ejercicios • %2$s</string>
 </resources>

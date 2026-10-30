@@ -40,7 +40,11 @@ data class UserSettings(
     val theme: String = "system", // light, dark, system
     val autoFillSets: Boolean = true,
     val showTimer: Boolean = true,
-    val takeWorkoutTime: Boolean = true
+    val takeWorkoutTime: Boolean = true,
+    val enableSupersets: Boolean = false,
+    val enableExertionTracking: Boolean = false,
+    val exertionMode: String = "rpe", // "rpe" or "rir"
+    val enableHealthConnect: Boolean = false
 )
 
 @Serializable

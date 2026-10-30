@@ -1,8 +1,9 @@
 package ch.simibu.sport.domain.usecase
 
 import ch.simibu.sport.core.model.Workout
+import ch.simibu.sport.presentation.calculator.OneRepMaxCalculator
+import ch.simibu.sport.presentation.calculator.OneRmFormula
 import javax.inject.Inject
-import kotlin.math.roundToInt
 
 class WorkoutCalculationUseCase @Inject constructor() {
 
@@ -19,10 +20,6 @@ class WorkoutCalculationUseCase @Inject constructor() {
     }
 
     fun calculate1RM(weight: Double, reps: Int): Double {
-        if (reps <= 0 || weight <= 0) return 0.0
-        if (reps == 1) return weight
-        // Epley formula
-        val epley = weight * (1.0 + reps / 30.0)
-        return (epley * 10.0).roundToInt() / 10.0
+        return OneRepMaxCalculator.calculate1RM(weight, reps, OneRmFormula.EPLEY)
     }
 }

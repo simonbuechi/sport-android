@@ -93,19 +93,63 @@
     <string name="history_empty">No workouts logged with this exercise yet.</string>
     <string name="history_1rm_label">1RM: %1$s kg</string>
 
-    <!-- Routines -->
-    <string name="routines_title">Workout Routines</string>
-    <string name="btn_create_routine">Create Routine</string>
-    <string name="btn_start_routine">Start Routine</string>
-    <string name="btn_edit_routine">Edit Routine</string>
-    <string name="edit_routine">Edit Routine</string>
-    <string name="new_routine">New Routine</string>
+    <!-- Routines (Overall term for Templates and Programs) -->
+    <string name="routines_title">Routines</string>
+    <string name="routines_tab_templates">Templates</string>
+    <string name="routines_tab_programs">Programs</string>
+
+    <!-- Templates -->
+    <string name="btn_create_template">Create Template</string>
+    <string name="btn_start_template">Start Template</string>
+    <string name="btn_start_workout">Start Workout</string>
+    <string name="btn_edit_template">Edit Template</string>
+    <string name="edit_template">Edit Template</string>
+    <string name="new_template">New Template</string>
+    <string name="template_details_title">Template Details</string>
+    <string name="templates_empty">No templates created yet. Tap \'+\' to create your first workout template!</string>
+    <string name="btn_create_routine">Create Template</string>
+    <string name="btn_start_routine">Start Template</string>
+    <string name="btn_edit_routine">Edit Template</string>
+    <string name="edit_routine">Edit Template</string>
+    <string name="new_routine">New Template</string>
     <string name="unit_exercises">exercises</string>
     <string name="table_set">Set</string>
     <string name="table_weight">Weight</string>
     <string name="table_reps">Reps</string>
-    <string name="routine_details_title">Routine Details</string>
-    <string name="routines_empty">No routines created yet. Tap \'+\' to create your first workout template!</string>
+    <string name="routine_details_title">Template Details</string>
+    <string name="routines_empty">No templates created yet. Tap \'+\' to create your first workout template!</string>
+
+    <!-- Programs -->
+    <string name="programs_title">Programs</string>
+    <string name="btn_create_program">Create Program</string>
+    <string name="btn_edit_program">Edit Program</string>
+    <string name="edit_program">Edit Program</string>
+    <string name="new_program">New Program</string>
+    <string name="programs_empty">No programs created yet. Tap \'+\' to create your first multi-day program!</string>
+    <string name="program_name_label">Program Name</string>
+    <string name="program_description_label">Description (optional)</string>
+    <string name="program_type_label">Program Type</string>
+    <string name="program_type_repetitive">Repetitive</string>
+    <string name="program_type_repetitive_desc">Repeats continuously (e.g. 3-day split, PPL)</string>
+    <string name="program_type_onetime">One-Time</string>
+    <string name="program_type_onetime_desc">Fixed sequence of days</string>
+    <string name="program_schedule_mode">Schedule Day Format</string>
+    <string name="program_mode_relative">Relative Days (Day 1..n)</string>
+    <string name="program_mode_dates">Calendar Dates (e.g. 1 May 2026)</string>
+    <string name="program_schedule">Program Schedule</string>
+    <string name="program_days_label">days</string>
+    <string name="program_add_day">Add Day</string>
+    <string name="program_day_prefix">Day %1$d</string>
+    <string name="program_rest_day">Rest Day</string>
+    <string name="program_rest_day_desc">Rest &amp; recovery day</string>
+    <string name="program_select_template">Select Template</string>
+    <string name="program_day_note_placeholder">Optional guidance or note for this day...</string>
+    <string name="program_active_badge">Active</string>
+    <string name="program_set_active">Set as Active</string>
+    <string name="program_is_active_desc">This is your currently active program</string>
+    <string name="program_days_summary">%1$d Days • %2$d Workouts, %3$d Rest</string>
+    <string name="dialog_delete_program_title">Delete Program?</string>
+    <string name="dialog_delete_program_msg">Are you sure you want to delete "%1$s"? This action cannot be undone.</string>
 
     <!-- Profile & Settings -->
     <string name="profile_title">Profile</string>
@@ -217,6 +261,7 @@
 
     <!-- Plate Calculator -->
     <string name="plate_calc_title">Plate Calculator</string>
+    <string name="plate_calc_short">Plates</string>
     <string name="plate_calc_target_weight">Target Weight</string>
     <string name="plate_calc_bar_weight">Bar Weight</string>
     <string name="plate_calc_weight_per_side">Each side: %1$.2f kg</string>
@@ -266,4 +311,40 @@
     <string name="one_rm_zone_endurance">Endurance</string>
     <string name="one_rm_zone_warmup">Warmup</string>
     <string name="one_rm_open_tooltip">1RM Calculator</string>
+
+    <!-- Supersets and Exertion (RPE/RIR) -->
+    <string name="supersets_setting_title">Enable Supersets</string>
+    <string name="supersets_setting_desc">Allow linking consecutive exercises into superset groups with notes.</string>
+    <string name="exertion_setting_title">Track Exertion (RPE / RIR)</string>
+    <string name="exertion_setting_desc">Record intensity per set using Rate of Perceived Exertion or Reps In Reserve.</string>
+    <string name="exertion_mode_title">Preferred Metric</string>
+    <string name="exertion_mode_rpe">RPE</string>
+    <string name="exertion_mode_rir">RIR</string>
+    <string name="exertion_rpe_full">Rate of Perceived Exertion (1–10 scale)</string>
+    <string name="exertion_rir_full">Reps In Reserve (count of reps left)</string>
+    <string name="supersets_title">Superset %1$s</string>
+    <string name="supersets_link_with_next">Group with next</string>
+    <string name="supersets_unlink">Ungroup</string>
+    <string name="supersets_add_note">Add superset note</string>
+    <string name="supersets_edit_note">Edit note</string>
+    <string name="supersets_note_placeholder">Guidance/rest cues for this superset…</string>
+    <string name="supersets_note_dialog_title">Superset Note</string>
+
+    <!-- Health Connect -->
+    <string name="health_connect_title">Health Connect</string>
+    <string name="health_connect_desc">Sync your workouts to Google Health Connect so Google Fit, Samsung Health, and other apps can access them.</string>
+    <string name="health_connect_sync_switch">Sync Workouts</string>
+    <string name="health_connect_sync_past">Sync Past Workouts</string>
+    <string name="health_connect_syncing">Syncing workouts to Health Connect…</string>
+    <string name="health_connect_synced_success">%1$d workouts synced to Health Connect</string>
+    <string name="health_connect_permission_denied">Health Connect write permission was denied.</string>
+    <string name="health_connect_unavailable">Health Connect is not available on this device.</string>
+    <string name="health_connect_update_required">Health Connect needs to be installed or updated from Google Play.</string>
+    <string name="health_connect_open_play_store">Install / Update</string>
+
+    <!-- Workout Notification -->
+    <string name="notification_channel_workout_name">Ongoing Workout</string>
+    <string name="notification_channel_workout_desc">Displays status while a workout session is active.</string>
+    <string name="notification_workout_in_progress">Workout in progress</string>
+    <string name="notification_workout_subtext">%1$d exercises • %2$s</string>
 </resources>

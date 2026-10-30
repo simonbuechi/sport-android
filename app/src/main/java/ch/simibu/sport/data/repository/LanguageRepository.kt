@@ -1,12 +1,9 @@
 package ch.simibu.sport.data.repository
 
-import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -27,20 +24,18 @@ enum class LanguageMode(val code: String, val displayName: String, val nativeNam
     }
 }
 
-private val Context.languageDataStore: DataStore<Preferences> by preferencesDataStore(name = "language_preferences")
-
 @Singleton
 class LanguageRepository @Inject constructor(
-    @ApplicationContext private val context: Context
+    private val dataStore: DataStore<Preferences>
 ) {
     private val languageKey = stringPreferencesKey("app_language_code")
 
-    val languageMode: Flow<LanguageMode> = context.languageDataStore.data.map { preferences ->
+    val languageMode: Flow<LanguageMode> = dataStore.data.map { preferences ->
         LanguageMode.fromCode(preferences[languageKey])
     }
 
     suspend fun setLanguageMode(mode: LanguageMode) {
-        context.languageDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[languageKey] = mode.code
         }
     }

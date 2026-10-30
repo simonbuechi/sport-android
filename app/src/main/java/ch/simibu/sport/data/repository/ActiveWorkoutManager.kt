@@ -2,6 +2,7 @@ package ch.simibu.sport.data.repository
 
 import ch.simibu.sport.core.model.ExerciseType
 import ch.simibu.sport.core.model.WorkoutExercise
+import ch.simibu.sport.data.notification.WorkoutNotificationManager
 import ch.simibu.sport.presentation.journal.WorkoutFormUiState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -32,7 +33,6 @@ data class ActiveWorkoutDraft(
     val time: String = "",
     val length: Int = 45,
     val sessionType: ExerciseType = ExerciseType.STRENGTH,
-    val intensity: Int = 3,
     val maxPulse: Int? = null,
     val comment: String = "",
     val exercises: List<WorkoutExercise> = emptyList()
@@ -59,9 +59,11 @@ fun formatElapsedTime(seconds: Long): String {
 
 @Singleton
 class ActiveWorkoutManager @Inject constructor(
-    private val draftRepository: DraftRepository
+    private val draftRepository: DraftRepository,
+    private val workoutNotificationManager: WorkoutNotificationManager
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val json = Json { ignoreUnknownKeys = true }
 
     private val _activeSession = MutableStateFlow<ActiveWorkoutSession?>(null)
@@ -71,6 +73,7 @@ class ActiveWorkoutManager @Inject constructor(
     val elapsedSeconds: StateFlow<Long> = _elapsedSeconds.asStateFlow()
 
     private var tickerJob: Job? = null
+    private var persistJob: Job? = null
 
     init {
         scope.launch {
@@ -84,19 +87,22 @@ class ActiveWorkoutManager @Inject constructor(
                         time = draft.time,
                         length = draft.length,
                         sessionType = draft.sessionType,
-                        intensity = draft.intensity,
                         maxPulse = draft.maxPulse,
                         comment = draft.comment,
                         exercises = draft.exercises,
                         takeWorkoutTime = draft.takeWorkoutTime
                     )
-                    _activeSession.value = ActiveWorkoutSession(
+                    val session = ActiveWorkoutSession(
                         startTimeMs = draft.startTimeMs,
                         templateId = draft.templateId,
                         templateName = draft.templateName,
                         takeWorkoutTime = draft.takeWorkoutTime,
                         state = restoredState
                     )
+                    _activeSession.value = session
+                    val initialElapsed = maxOf(0L, (System.currentTimeMillis() - draft.startTimeMs) / 1000)
+                    _elapsedSeconds.value = initialElapsed
+                    workoutNotificationManager.updateNotification(session, initialElapsed)
                     startTicker(draft.startTimeMs)
                 }
             } catch (e: Exception) {
@@ -120,6 +126,7 @@ class ActiveWorkoutManager @Inject constructor(
             state = initialState.copy(takeWorkoutTime = takeWorkoutTime)
         )
         _activeSession.value = session
+        workoutNotificationManager.updateNotification(session, 0L)
         persistDraft(session)
         startTicker(startTime)
     }
@@ -128,11 +135,16 @@ class ActiveWorkoutManager @Inject constructor(
         val current = _activeSession.value ?: return
         val updated = current.copy(state = state)
         _activeSession.value = updated
+        workoutNotificationManager.updateNotification(updated, _elapsedSeconds.value)
         persistDraft(updated)
     }
 
-    private fun persistDraft(session: ActiveWorkoutSession) {
-        scope.launch {
+    private fun persistDraft(session: ActiveWorkoutSession, immediate: Boolean = false) {
+        persistJob?.cancel()
+        persistJob = ioScope.launch {
+            if (!immediate) {
+                delay(400L)
+            }
             try {
                 val draft = ActiveWorkoutDraft(
                     startTimeMs = session.startTimeMs,
@@ -144,7 +156,6 @@ class ActiveWorkoutManager @Inject constructor(
                     time = session.state.time,
                     length = session.state.length,
                     sessionType = session.state.sessionType,
-                    intensity = session.state.intensity,
                     maxPulse = session.state.maxPulse,
                     comment = session.state.comment,
                     exercises = session.state.exercises
@@ -162,17 +173,24 @@ class ActiveWorkoutManager @Inject constructor(
             while (isActive && _activeSession.value != null) {
                 val elapsed = maxOf(0L, (System.currentTimeMillis() - startTimeMs) / 1000)
                 _elapsedSeconds.value = elapsed
+                val session = _activeSession.value
+                if (session != null) {
+                    workoutNotificationManager.updateNotification(session, elapsed)
+                }
                 delay(1000)
             }
         }
     }
 
     fun clearSession() {
+        workoutNotificationManager.cancelNotification()
+        persistJob?.cancel()
+        persistJob = null
         tickerJob?.cancel()
         tickerJob = null
         _activeSession.value = null
         _elapsedSeconds.value = 0L
-        scope.launch {
+        ioScope.launch {
             draftRepository.clearWorkoutDraft()
         }
     }

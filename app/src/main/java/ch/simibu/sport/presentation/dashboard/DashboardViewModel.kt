@@ -4,12 +4,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ch.simibu.sport.core.model.Exercise
 import ch.simibu.sport.core.model.PersonalRecord
+import ch.simibu.sport.core.model.Program
+import ch.simibu.sport.core.model.ProgramDay
 import ch.simibu.sport.core.model.TrainingTemplate
 import ch.simibu.sport.core.model.UserProfile
 import ch.simibu.sport.core.model.WeightEntry
 import ch.simibu.sport.core.model.Workout
 import ch.simibu.sport.domain.repository.AuthRepository
 import ch.simibu.sport.domain.repository.ExerciseRepository
+import ch.simibu.sport.domain.repository.ProgramRepository
 import ch.simibu.sport.domain.repository.TemplateRepository
 import ch.simibu.sport.domain.repository.UserProfileRepository
 import ch.simibu.sport.domain.repository.WorkoutRepository
@@ -17,16 +20,17 @@ import ch.simibu.sport.domain.usecase.WorkoutCalculationUseCase
 import ch.simibu.sport.presentation.recovery.BodyRecoverySummary
 import ch.simibu.sport.presentation.recovery.MuscleRecoveryCalculator
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
-import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
-import java.util.Calendar
-import java.util.Locale
 import javax.inject.Inject
 
 data class DashboardUiState(
@@ -39,46 +43,41 @@ data class DashboardUiState(
     val recoverySummary: BodyRecoverySummary = BodyRecoverySummary.defaultFullyRecovered(),
     val exercisesMap: Map<String, Exercise> = emptyMap(),
     val favoriteTemplates: List<TrainingTemplate> = emptyList(),
+    val activeProgram: Program? = null,
+    val activeProgramDay: ProgramDay? = null,
+    val activeProgramTemplate: TrainingTemplate? = null,
     val latestWeight: WeightEntry? = null,
     val weightTrendKg: Double? = null,
     val isLoading: Boolean = true
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val workoutRepository: WorkoutRepository,
     private val templateRepository: TemplateRepository,
+    private val programRepository: ProgramRepository,
     private val userProfileRepository: UserProfileRepository,
     private val exerciseRepository: ExerciseRepository,
     private val calculationUseCase: WorkoutCalculationUseCase
 ) : ViewModel() {
 
-    private val currentUserId = authRepository.currentUserId
-
-    val uiState: StateFlow<DashboardUiState> = if (currentUserId == null) {
-        MutableStateFlow(DashboardUiState(isLoading = false))
-    } else {
-        combine(
-            workoutRepository.getWorkouts(currentUserId),
-            templateRepository.getTemplates(currentUserId),
-            userProfileRepository.getUserProfile(currentUserId),
-            exerciseRepository.getExercises()
-        ) { workouts, templates, profile, exercises ->
+    val uiState: StateFlow<DashboardUiState> = authRepository.currentUser
+        .flatMapLatest { user ->
+            val currentUserId = user?.uid
+            if (currentUserId == null) {
+                flowOf(DashboardUiState(isLoading = false))
+            } else {
+                combine(
+                    workoutRepository.getWorkouts(currentUserId),
+                    templateRepository.getTemplates(currentUserId),
+                    programRepository.getPrograms(currentUserId),
+                    userProfileRepository.getUserProfile(currentUserId),
+                    exerciseRepository.getExercises()
+                ) { workouts, templates, programs, profile, exercises ->
             val today = LocalDate.now()
-            val sevenDaysAgoCal = Calendar.getInstance().apply {
-                add(Calendar.DAY_OF_YEAR, -7)
-            }
-            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-
-            val workoutsLast7 = workouts.count { w ->
-                try {
-                    val d = dateFormat.parse(w.date)
-                    d != null && d.after(sevenDaysAgoCal.time)
-                } catch (e: Exception) {
-                    false
-                }
-            }
+            val sevenDaysAgo = today.minusDays(7)
 
             val favTemplates = templates.filter { it.isFavorite }
             val sortedWeights = profile?.weights?.sortedByDescending { it.date } ?: emptyList()
@@ -99,6 +98,10 @@ class DashboardViewModel @Inject constructor(
                 }
                 if (parsed != null) Pair(parsed, w) else null
             }.sortedWith(compareBy({ it.first }, { it.second.time ?: "" }))
+
+            val workoutsLast7 = chronologicalWorkouts.count { (date, _) ->
+                date.isAfter(sevenDaysAgo)
+            }
 
             val exerciseBestWeight = mutableMapOf<String, Double>()
             val exerciseBest1RM = mutableMapOf<String, Double>()
@@ -159,15 +162,10 @@ class DashboardViewModel @Inject constructor(
                 }
             }
 
-            // Pick up to 3 most recent PRs (prioritizing distinct exercises)
+            // Pick the single most recent PR
             val sortedPRs = allPrRecords
                 .sortedWith(compareByDescending<PersonalRecord> { it.date }.thenByDescending { it.estimated1RM })
-            val distinctExercises = sortedPRs.distinctBy { it.exerciseId }
-            val recentPRs = if (distinctExercises.size >= 3) {
-                distinctExercises.take(3)
-            } else {
-                sortedPRs.distinctBy { "${it.exerciseId}_${it.date}" }.take(3)
-            }
+            val recentPRs = sortedPRs.take(1)
 
             val lastWorkoutDate = chronologicalWorkouts.lastOrNull()?.first
             val workedOutToday = lastWorkoutDate == today
@@ -187,24 +185,42 @@ class DashboardViewModel @Inject constructor(
                 exerciseMap = exMap
             )
 
+            val activeProgram = programs.find { it.isActive }
+            val activeProgramDay = activeProgram?.let { prog ->
+                if (prog.usesDates) {
+                    prog.days.find { !it.date.isNullOrBlank() && it.date >= today.toString() }
+                        ?: prog.days.getOrNull(prog.currentDayIndex)
+                        ?: prog.days.firstOrNull()
+                } else {
+                    prog.days.getOrNull(prog.currentDayIndex) ?: prog.days.firstOrNull()
+                }
+            }
+            val activeProgramTemplate = activeProgramDay?.templateId?.let { tid ->
+                templates.find { it.id == tid }
+            }
+
             DashboardUiState(
                 userName = profile?.name?.ifBlank { "Athlete" } ?: "Athlete",
                 motivationalMessage = motivationalMessage,
                 workoutsLast7Days = workoutsLast7,
                 totalWorkouts = workouts.size,
-                recentWorkouts = workouts.take(5),
+                recentWorkouts = workouts.take(2),
                 recentPersonalRecords = recentPRs,
                 recoverySummary = recoverySummary,
                 exercisesMap = exMap,
-                favoriteTemplates = favTemplates,
+                favoriteTemplates = favTemplates.take(2),
+                activeProgram = activeProgram,
+                activeProgramDay = activeProgramDay,
+                activeProgramTemplate = activeProgramTemplate,
                 latestWeight = latestW,
                 weightTrendKg = weightTrend,
                 isLoading = false
             )
-        }.stateIn(
+                }
+            }
+        }.flowOn(Dispatchers.Default).stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = DashboardUiState()
         )
-    }
 }

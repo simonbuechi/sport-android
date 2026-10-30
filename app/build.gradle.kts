@@ -116,6 +116,9 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
 
+    // Health Connect
+    implementation(libs.androidx.health.connect)
+
     // DataStore & Serialization
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.kotlinx.serialization.json)

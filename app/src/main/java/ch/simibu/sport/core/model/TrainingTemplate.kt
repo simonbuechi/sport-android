@@ -6,6 +6,8 @@ import kotlinx.serialization.Serializable
 data class TemplateExercise(
     val exerciseId: String = "",
     val note: String? = null,
+    val supersetId: String? = null,
+    val supersetNote: String? = null,
     val sets: List<ExerciseSet> = emptyList()
 )
 

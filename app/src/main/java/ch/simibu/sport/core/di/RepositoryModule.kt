@@ -2,11 +2,13 @@ package ch.simibu.sport.core.di
 
 import ch.simibu.sport.data.repository.AuthRepositoryImpl
 import ch.simibu.sport.data.repository.ExerciseRepositoryImpl
+import ch.simibu.sport.data.repository.ProgramRepositoryImpl
 import ch.simibu.sport.data.repository.TemplateRepositoryImpl
 import ch.simibu.sport.data.repository.UserProfileRepositoryImpl
 import ch.simibu.sport.data.repository.WorkoutRepositoryImpl
 import ch.simibu.sport.domain.repository.AuthRepository
 import ch.simibu.sport.domain.repository.ExerciseRepository
+import ch.simibu.sport.domain.repository.ProgramRepository
 import ch.simibu.sport.domain.repository.TemplateRepository
 import ch.simibu.sport.domain.repository.UserProfileRepository
 import ch.simibu.sport.domain.repository.WorkoutRepository
@@ -43,6 +45,12 @@ abstract class RepositoryModule {
     abstract fun bindTemplateRepository(
         impl: TemplateRepositoryImpl
     ): TemplateRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindProgramRepository(
+        impl: ProgramRepositoryImpl
+    ): ProgramRepository
 
     @Binds
     @Singleton

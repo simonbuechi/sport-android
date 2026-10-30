@@ -234,6 +234,37 @@ private fun ChartCanvas(
         )
     }
 
+    val linePath = remember { Path() }
+    val areaPath = remember { Path() }
+    val gridDashEffect = remember { PathEffect.dashPathEffect(floatArrayOf(8f, 8f)) }
+    val scrubDashEffect = remember { PathEffect.dashPathEffect(floatArrayOf(6f, 6f)) }
+
+    val gridSteps = 3
+    val yRange = maxY - minY
+    val yLabelLayouts = remember(minY, maxY, labelStyle) {
+        (0..gridSteps).map { step ->
+            val fraction = step.toFloat() / gridSteps
+            val gridVal = minY + fraction * yRange
+            val formattedY = if (gridVal >= 100) "${gridVal.toInt()}" else String.format(Locale.US, "%.1f", gridVal)
+            textMeasurer.measure(text = formattedY, style = labelStyle)
+        }
+    }
+
+    val xLabelLayouts = remember(dataPoints, labelStyle) {
+        val xLabelCount = minOf(4, dataPoints.size)
+        if (xLabelCount >= 2) {
+            val stepIndex = (dataPoints.size - 1).toFloat() / (xLabelCount - 1)
+            (0 until xLabelCount).map { k ->
+                val idx = (k * stepIndex).toInt().coerceIn(0, dataPoints.size - 1)
+                val dp = dataPoints[idx]
+                val dateText = dp.formattedDate.ifEmpty { formatDate(dp.timestamp) }
+                idx to textMeasurer.measure(text = dateText, style = labelStyle)
+            }
+        } else {
+            emptyList()
+        }
+    }
+
     Box(
         modifier = modifier
             .pointerInput(dataPoints) {
@@ -293,12 +324,9 @@ private fun ChartCanvas(
             if (chartWidth <= 0 || chartHeight <= 0) return@Canvas
 
             // 1. Draw horizontal gridlines & Y labels
-            val gridSteps = 3
-            val yRange = maxY - minY
             for (step in 0..gridSteps) {
                 val fraction = step.toFloat() / gridSteps
                 val gridY = paddingTop + (1f - fraction) * chartHeight
-                val gridVal = minY + fraction * yRange
 
                 // Dashed horizontal line
                 drawLine(
@@ -306,15 +334,11 @@ private fun ChartCanvas(
                     start = Offset(paddingLeft, gridY),
                     end = Offset(size.width - paddingRight, gridY),
                     strokeWidth = 1.dp.toPx(),
-                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f))
+                    pathEffect = gridDashEffect
                 )
 
                 // Label
-                val formattedY = if (gridVal >= 100) "${gridVal.toInt()}" else String.format(Locale.US, "%.1f", gridVal)
-                val textLayout = textMeasurer.measure(
-                    text = formattedY,
-                    style = labelStyle
-                )
+                val textLayout = yLabelLayouts[step]
                 drawText(
                     textLayoutResult = textLayout,
                     topLeft = Offset(paddingLeft - textLayout.size.width - 6.dp.toPx(), gridY - textLayout.size.height / 2f)
@@ -333,8 +357,8 @@ private fun ChartCanvas(
 
             // 3. Draw smooth cubic Bézier line and area gradient
             if (coords.isNotEmpty()) {
-                val linePath = Path()
-                val areaPath = Path()
+                linePath.reset()
+                areaPath.reset()
 
                 linePath.moveTo(coords[0].x, coords[0].y)
                 areaPath.moveTo(coords[0].x, paddingTop + chartHeight)
@@ -393,29 +417,16 @@ private fun ChartCanvas(
             }
 
             // 4. Draw X-axis date labels
-            val xLabelCount = minOf(4, dataPoints.size)
-            if (xLabelCount >= 2) {
-                val stepIndex = (dataPoints.size - 1).toFloat() / (xLabelCount - 1)
-                for (k in 0 until xLabelCount) {
-                    val idx = (k * stepIndex).toInt().coerceIn(0, dataPoints.size - 1)
-                    val dp = dataPoints[idx]
-                    val pt = coords[idx]
-                    val dateText = dp.formattedDate.ifEmpty {
-                        formatDate(dp.timestamp)
-                    }
-                    val dateLayout = textMeasurer.measure(
-                        text = dateText,
-                        style = labelStyle
-                    )
-                    val labelX = (pt.x - dateLayout.size.width / 2f).coerceIn(
-                        paddingLeft,
-                        size.width - paddingRight - dateLayout.size.width
-                    )
-                    drawText(
-                        textLayoutResult = dateLayout,
-                        topLeft = Offset(labelX, size.height - paddingBottom + 6.dp.toPx())
-                    )
-                }
+            for ((idx, dateLayout) in xLabelLayouts) {
+                val pt = coords[idx]
+                val labelX = (pt.x - dateLayout.size.width / 2f).coerceIn(
+                    paddingLeft,
+                    size.width - paddingRight - dateLayout.size.width
+                )
+                drawText(
+                    textLayoutResult = dateLayout,
+                    topLeft = Offset(labelX, size.height - paddingBottom + 6.dp.toPx())
+                )
             }
 
             // 5. Draw highlighted point and tooltip if user is scrubbing
@@ -430,7 +441,7 @@ private fun ChartCanvas(
                         start = Offset(pt.x, paddingTop),
                         end = Offset(pt.x, paddingTop + chartHeight),
                         strokeWidth = 1.5.dp.toPx(),
-                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f))
+                        pathEffect = scrubDashEffect
                     )
 
                     // Glow circle

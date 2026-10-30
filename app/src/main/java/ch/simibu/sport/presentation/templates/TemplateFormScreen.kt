@@ -20,9 +20,15 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -32,6 +38,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -44,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -57,9 +65,13 @@ import ch.simibu.sport.core.model.Exercise
 import ch.simibu.sport.core.model.ExerciseSet
 import ch.simibu.sport.core.model.TemplateExercise
 import ch.simibu.sport.core.model.TrainingTemplate
+import ch.simibu.sport.core.util.SupersetGroup
+import ch.simibu.sport.core.util.SupersetItemWrapper
+import ch.simibu.sport.core.util.SupersetUtils
 import ch.simibu.sport.domain.repository.AuthRepository
 import ch.simibu.sport.domain.repository.ExerciseRepository
 import ch.simibu.sport.domain.repository.TemplateRepository
+import ch.simibu.sport.domain.repository.UserProfileRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -75,6 +87,7 @@ data class TemplateFormUiState(
     val notes: String = "",
     val exercises: List<TemplateExercise> = emptyList(),
     val availableExercises: List<Exercise> = emptyList(),
+    val enableSupersets: Boolean = false,
     val isSaving: Boolean = false,
     val isSaved: Boolean = false,
     val error: String? = null
@@ -84,10 +97,12 @@ data class TemplateFormUiState(
 class TemplateFormViewModel @Inject constructor(
     private val templateRepository: TemplateRepository,
     private val exerciseRepository: ExerciseRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val userProfileRepository: UserProfileRepository
 ) : ViewModel() {
 
-    private val currentUserId = authRepository.currentUserId
+    private val currentUserId: String?
+        get() = authRepository.currentUserId
 
     private val _uiState = MutableStateFlow(TemplateFormUiState())
     val uiState: StateFlow<TemplateFormUiState> = _uiState.asStateFlow()
@@ -96,6 +111,18 @@ class TemplateFormViewModel @Inject constructor(
         viewModelScope.launch {
             exerciseRepository.getExercises().collect { list ->
                 _uiState.update { it.copy(availableExercises = list) }
+            }
+        }
+        viewModelScope.launch {
+            authRepository.currentUser.collect { user ->
+                val uid = user?.uid ?: return@collect
+                userProfileRepository.getUserProfile(uid).collect { profile ->
+                    if (profile != null) {
+                        _uiState.update {
+                            it.copy(enableSupersets = profile.settings.enableSupersets)
+                        }
+                    }
+                }
             }
         }
     }
@@ -137,7 +164,26 @@ class TemplateFormViewModel @Inject constructor(
     fun removeExercise(index: Int) {
         _uiState.update { state ->
             val updated = state.exercises.toMutableList().apply { removeAt(index) }
-            state.copy(exercises = updated)
+            val cleaned = SupersetUtils.unlinkTemplateFromSuperset(updated, index.coerceAtMost(updated.size - 1))
+            state.copy(exercises = cleaned)
+        }
+    }
+
+    fun linkWithNext(index: Int) {
+        _uiState.update { state ->
+            state.copy(exercises = SupersetUtils.linkTemplateWithNext(state.exercises, index))
+        }
+    }
+
+    fun unlinkSuperset(index: Int) {
+        _uiState.update { state ->
+            state.copy(exercises = SupersetUtils.unlinkTemplateFromSuperset(state.exercises, index))
+        }
+    }
+
+    fun updateSupersetNote(supersetId: String, note: String) {
+        _uiState.update { state ->
+            state.copy(exercises = SupersetUtils.updateTemplateSupersetNote(state.exercises, supersetId, note))
         }
     }
 
@@ -195,6 +241,40 @@ fun TemplateFormScreen(
 
     var showPicker by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+    var editingSupersetId by remember { mutableStateOf<String?>(null) }
+    var tempSupersetNote by remember { mutableStateOf("") }
+
+    if (editingSupersetId != null) {
+        val currentSid = editingSupersetId!!
+        AlertDialog(
+            onDismissRequest = { editingSupersetId = null },
+            title = { Text(stringResource(R.string.supersets_note_dialog_title)) },
+            text = {
+                OutlinedTextField(
+                    value = tempSupersetNote,
+                    onValueChange = { tempSupersetNote = it },
+                    placeholder = { Text(stringResource(R.string.supersets_note_placeholder)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.updateSupersetNote(currentSid, tempSupersetNote)
+                        editingSupersetId = null
+                    }
+                ) {
+                    Text(stringResource(R.string.btn_save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { editingSupersetId = null }) {
+                    Text(stringResource(R.string.btn_cancel))
+                }
+            }
+        )
+    }
 
     androidx.compose.runtime.LaunchedEffect(templateId) {
         if (!templateId.isNullOrBlank()) {
@@ -202,8 +282,10 @@ fun TemplateFormScreen(
         }
     }
 
-    if (uiState.isSaved) {
-        onNavigateBack()
+    androidx.compose.runtime.LaunchedEffect(uiState.isSaved) {
+        if (uiState.isSaved) {
+            onNavigateBack()
+        }
     }
 
     Scaffold(
@@ -296,24 +378,209 @@ fun TemplateFormScreen(
                     )
                 }
 
-                itemsIndexed(uiState.exercises) { idx, te ->
-                    val exInfo = uiState.availableExercises.find { it.id == te.exerciseId }
-                    val name = exInfo?.name ?: "Exercise"
+                val templateBlocks = if (uiState.enableSupersets) {
+                    SupersetUtils.groupTemplateExercises(uiState.exercises)
+                } else {
+                    uiState.exercises.mapIndexed { idx, ex ->
+                        SupersetGroup(
+                            isSuperset = false,
+                            items = listOf(SupersetItemWrapper(ex, idx))
+                        )
+                    }
+                }
 
-                    TactileCard(modifier = Modifier.fillMaxWidth()) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text(name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                Text("${te.sets.size} target sets", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                templateBlocks.forEachIndexed { blockIdx, block ->
+                    if (block.isSuperset) {
+                        item(key = "superset_${block.supersetId ?: blockIdx}") {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f))
+                                    .border(
+                                        width = 1.5.dp,
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
+                                        shape = RoundedCornerShape(16.dp)
+                                    )
+                                    .padding(12.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Link,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = stringResource(R.string.supersets_title, block.letter ?: "A"),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        if (!block.note.isNullOrBlank()) {
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = "\"${block.note}\"",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                                modifier = Modifier.clickable {
+                                                    editingSupersetId = block.supersetId
+                                                    tempSupersetNote = block.note ?: ""
+                                                }
+                                            )
+                                        }
+                                    }
+
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        IconButton(
+                                            onClick = {
+                                                editingSupersetId = block.supersetId
+                                                tempSupersetNote = block.note ?: ""
+                                            },
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.EditNote,
+                                                contentDescription = stringResource(if (block.note.isNullOrBlank()) R.string.supersets_add_note else R.string.supersets_edit_note),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        IconButton(
+                                            onClick = {
+                                                block.items.forEach { item ->
+                                                    viewModel.unlinkSuperset(item.originalIndex)
+                                                }
+                                            },
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.LinkOff,
+                                                contentDescription = stringResource(R.string.supersets_unlink),
+                                                tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    block.items.forEach { itemWrapper ->
+                                        val exInfo = uiState.availableExercises.find { it.id == itemWrapper.item.exerciseId }
+                                        val name = exInfo?.name ?: "Exercise"
+                                        TactileCard(modifier = Modifier.fillMaxWidth()) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(14.dp),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    modifier = Modifier.weight(1f)
+                                                ) {
+                                                    if (itemWrapper.tag != null) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .clip(RoundedCornerShape(6.dp))
+                                                                .background(MaterialTheme.colorScheme.primary)
+                                                                .padding(horizontal = 7.dp, vertical = 3.dp),
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Text(
+                                                                text = itemWrapper.tag,
+                                                                style = MaterialTheme.typography.labelSmall,
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = MaterialTheme.colorScheme.onPrimary
+                                                            )
+                                                        }
+                                                        Spacer(modifier = Modifier.width(8.dp))
+                                                    }
+                                                    Column {
+                                                        Text(name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                                                        Text("${itemWrapper.item.sets.size} target sets", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                    }
+                                                }
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    IconButton(onClick = { viewModel.unlinkSuperset(itemWrapper.originalIndex) }) {
+                                                        Icon(Icons.Default.LinkOff, contentDescription = stringResource(R.string.supersets_unlink), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                    }
+                                                    IconButton(onClick = { viewModel.removeExercise(itemWrapper.originalIndex) }) {
+                                                        Icon(Icons.Default.Delete, contentDescription = "Remove", tint = MaterialTheme.colorScheme.error)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
-                            IconButton(onClick = { viewModel.removeExercise(idx) }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Remove", tint = MaterialTheme.colorScheme.error)
+                        }
+                    } else {
+                        item(key = "exercise_${block.items[0].originalIndex}") {
+                            val itemWrapper = block.items[0]
+                            val exInfo = uiState.availableExercises.find { it.id == itemWrapper.item.exerciseId }
+                            val name = exInfo?.name ?: "Exercise"
+                            TactileCard(modifier = Modifier.fillMaxWidth()) {
+                                Column(modifier = Modifier.padding(14.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column {
+                                            Text(name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                            Text("${itemWrapper.item.sets.size} target sets", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                        IconButton(onClick = { viewModel.removeExercise(itemWrapper.originalIndex) }) {
+                                            Icon(Icons.Default.Delete, contentDescription = "Remove", tint = MaterialTheme.colorScheme.error)
+                                        }
+                                    }
+
+                                    if (uiState.enableSupersets && itemWrapper.originalIndex < uiState.exercises.size - 1) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.End
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                                                    .tactileClickable { viewModel.linkWithNext(itemWrapper.originalIndex) }
+                                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                            ) {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Icon(
+                                                        Icons.Default.Link,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(14.dp),
+                                                        tint = MaterialTheme.colorScheme.primary
+                                                    )
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text(
+                                                        text = stringResource(R.string.supersets_link_with_next),
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = MaterialTheme.colorScheme.primary
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -341,55 +608,17 @@ fun TemplateFormScreen(
         }
 
         if (showPicker) {
-            ModalBottomSheet(
-                onDismissRequest = { showPicker = false },
-                sheetState = rememberModalBottomSheetState()
-            ) {
-                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
-                    Text("Select Exercise", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        placeholder = { Text("Search exercises...") },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    val filtered = uiState.availableExercises.filter {
-                        searchQuery.isBlank() || it.name.contains(searchQuery, ignoreCase = true)
-                    }
-
-                    LazyColumn(modifier = Modifier.fillMaxWidth().height(360.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(filtered) { ex ->
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-                                    .tactileClickable {
-                                        viewModel.addExercise(ex.id)
-                                        showPicker = false
-                                        searchQuery = ""
-                                    }
-                                    .padding(14.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(ex.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                                    Icon(Icons.Default.Add, contentDescription = "Add", tint = MaterialTheme.colorScheme.primary)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            ch.simibu.sport.core.designsystem.ExercisePickerSheet(
+                availableExercises = uiState.availableExercises,
+                searchQuery = searchQuery,
+                onSearchQueryChange = { searchQuery = it },
+                onExerciseSelected = { ex ->
+                    viewModel.addExercise(ex.id)
+                    showPicker = false
+                    searchQuery = ""
+                },
+                onDismissRequest = { showPicker = false }
+            )
         }
     }
 }

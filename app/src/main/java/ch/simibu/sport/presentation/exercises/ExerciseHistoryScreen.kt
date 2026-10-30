@@ -18,9 +18,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -65,10 +65,13 @@ import ch.simibu.sport.domain.repository.ExerciseRepository
 import ch.simibu.sport.domain.repository.WorkoutRepository
 import ch.simibu.sport.domain.usecase.WorkoutCalculationUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 
 data class ExerciseSessionHistory(
@@ -97,11 +100,20 @@ class ExerciseHistoryViewModel @Inject constructor(
     private val calculationUseCase: WorkoutCalculationUseCase
 ) : ViewModel() {
 
-    private val currentUserId = authRepository.currentUserId
+    private val currentUserId: String?
+        get() = authRepository.currentUserId
+    private val uiStateCache = ConcurrentHashMap<String, StateFlow<ExerciseHistoryUiState>>()
 
     fun getUiState(exerciseId: String): StateFlow<ExerciseHistoryUiState> {
-        val workoutsFlow = if (currentUserId != null) {
-            workoutRepository.getWorkouts(currentUserId)
+        val uid = currentUserId ?: "guest"
+        return uiStateCache.computeIfAbsent("$uid:$exerciseId") {
+            createUiStateFlow(exerciseId, currentUserId)
+        }
+    }
+
+    private fun createUiStateFlow(exerciseId: String, uid: String?): StateFlow<ExerciseHistoryUiState> {
+        val workoutsFlow = if (uid != null) {
+            workoutRepository.getWorkouts(uid)
         } else {
             kotlinx.coroutines.flow.flowOf(emptyList())
         }
@@ -166,7 +178,7 @@ class ExerciseHistoryViewModel @Inject constructor(
                 totalSetsAllTime = totalSets,
                 isLoading = false
             )
-        }.stateIn(
+        }.flowOn(Dispatchers.Default).stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = ExerciseHistoryUiState()
@@ -325,7 +337,7 @@ fun ExerciseHistoryScreen(
                         Column(modifier = Modifier.padding(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    Icons.Default.TrendingUp,
+                                    Icons.AutoMirrored.Filled.TrendingUp,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.secondary,
                                     modifier = Modifier.size(20.dp)

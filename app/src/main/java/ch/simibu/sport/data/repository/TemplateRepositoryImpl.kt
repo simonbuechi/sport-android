@@ -34,28 +34,16 @@ class TemplateRepositoryImpl @Inject constructor(
             val map = item as? Map<String, Any?> ?: return@mapNotNull null
             val exerciseId = map["exerciseId"] as? String ?: return@mapNotNull null
             val note = map["note"] as? String
+            val supersetId = map["supersetId"] as? String
+            val supersetNote = map["supersetNote"] as? String
             val setsRaw = map["sets"] as? List<*>
-            val sets = setsRaw?.mapNotNull { setItem ->
-                val setMap = setItem as? Map<String, Any?> ?: return@mapNotNull null
-                val weight = when (val w = setMap["weight"]) {
-                    is Number -> w.toDouble()
-                    else -> null
-                }
-                val reps = when (val r = setMap["reps"]) {
-                    is Number -> r.toInt()
-                    else -> null
-                }
-                ExerciseSet(
-                    id = setMap["id"] as? String ?: UUID.randomUUID().toString(),
-                    weight = weight,
-                    reps = reps,
-                    notes = setMap["notes"] as? String
-                )
-            } ?: emptyList()
+            val sets = FirestoreSetMapper.parseSets(setsRaw)
 
             TemplateExercise(
                 exerciseId = exerciseId,
                 note = note,
+                supersetId = supersetId,
+                supersetNote = supersetNote,
                 sets = sets
             )
         } ?: emptyList()
@@ -73,18 +61,14 @@ class TemplateRepositoryImpl @Inject constructor(
 
     private fun mapTemplateToMap(template: TrainingTemplate): Map<String, Any?> {
         val exercisesList = template.exercises.map { te ->
-            hashMapOf(
+            val exMap = hashMapOf<String, Any?>(
                 "exerciseId" to te.exerciseId,
                 "note" to te.note,
-                "sets" to te.sets.map { s ->
-                    hashMapOf(
-                        "id" to s.id,
-                        "weight" to s.weight,
-                        "reps" to s.reps,
-                        "notes" to s.notes
-                    )
-                }
+                "sets" to FirestoreSetMapper.setsToMaps(te.sets)
             )
+            if (te.supersetId != null) exMap["supersetId"] = te.supersetId
+            if (te.supersetNote != null) exMap["supersetNote"] = te.supersetNote
+            exMap
         }
 
         return hashMapOf(

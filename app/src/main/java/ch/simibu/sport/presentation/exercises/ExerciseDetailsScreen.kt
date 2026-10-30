@@ -25,7 +25,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.History
@@ -71,7 +70,6 @@ import ch.simibu.sport.core.designsystem.SportLineChart
 import ch.simibu.sport.core.designsystem.TactileButton
 import ch.simibu.sport.core.designsystem.TactileCard
 import ch.simibu.sport.presentation.calculator.OneRepMaxSheet
-import ch.simibu.sport.presentation.calculator.PlateCalculatorSheet
 import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -87,7 +85,6 @@ fun ExerciseDetailsScreen(
 
     var personalNotesText by remember { mutableStateOf("") }
     var selectedTimeFrame by remember { mutableStateOf(ChartTimeFrame.SIX_MONTHS) }
-    var showPlateCalculator by remember { mutableStateOf(false) }
     var showOneRmSheet by remember { mutableStateOf(false) }
 
     // Sync personal notes text with state when loaded
@@ -122,15 +119,6 @@ fun ExerciseDetailsScreen(
                         Icon(
                             imageVector = Icons.Default.Speed,
                             contentDescription = stringResource(R.string.one_rm_open_tooltip),
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    IconButton(
-                        onClick = { showPlateCalculator = true }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Calculate,
-                            contentDescription = stringResource(R.string.plate_calc_open_tooltip),
                             tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -468,8 +456,14 @@ fun ExerciseDetailsScreen(
                                     .clip(RoundedCornerShape(10.dp))
                                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                                     .clickable {
-                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(link.url))
-                                        context.startActivity(intent)
+                                        runCatching {
+                                            val uri = Uri.parse(link.url.trim())
+                                            val scheme = uri.scheme?.lowercase()
+                                            if (scheme == "https" || scheme == "http") {
+                                                val intent = Intent(Intent.ACTION_VIEW, uri)
+                                                context.startActivity(intent)
+                                            }
+                                        }
                                     }
                                     .padding(horizontal = 14.dp, vertical = 12.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -532,14 +526,6 @@ fun ExerciseDetailsScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-        }
-
-        if (showPlateCalculator) {
-            val initialWeight = uiState.allChartDataPoints.lastOrNull()?.value?.toDouble() ?: 60.0
-            PlateCalculatorSheet(
-                initialWeight = initialWeight,
-                onDismissRequest = { showPlateCalculator = false }
-            )
         }
 
         if (showOneRmSheet) {

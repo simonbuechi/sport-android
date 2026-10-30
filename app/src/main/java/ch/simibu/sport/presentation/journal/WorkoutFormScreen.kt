@@ -26,16 +26,15 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -72,7 +71,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ch.simibu.sport.R
-import ch.simibu.sport.core.designsystem.AccentGoldLight
 import ch.simibu.sport.core.designsystem.ExerciseIcon
 import ch.simibu.sport.core.designsystem.SportPurple
 import ch.simibu.sport.core.designsystem.SportRuby
@@ -80,9 +78,13 @@ import ch.simibu.sport.core.designsystem.TactileButton
 import ch.simibu.sport.core.designsystem.TactileCard
 import ch.simibu.sport.core.designsystem.TactileChip
 import ch.simibu.sport.core.designsystem.tactileClickable
+import ch.simibu.sport.core.model.Exercise
 import ch.simibu.sport.core.model.ExerciseType
-import ch.simibu.sport.presentation.calculator.OneRepMaxSheet
-import ch.simibu.sport.presentation.calculator.PlateCalculatorSheet
+import ch.simibu.sport.core.model.WorkoutExercise
+import ch.simibu.sport.core.util.ExertionUtils
+import ch.simibu.sport.core.util.SupersetGroup
+import ch.simibu.sport.core.util.SupersetItemWrapper
+import ch.simibu.sport.core.util.SupersetUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,17 +103,16 @@ fun WorkoutFormScreen(
         viewModel.initWorkout(workoutId, templateId)
     }
 
-    if (uiState.isSaved) {
-        onNavigateBack()
+    LaunchedEffect(uiState.isSaved) {
+        if (uiState.isSaved) {
+            onNavigateBack()
+        }
     }
 
     var showDiscardDialog by remember { mutableStateOf(false) }
-    var showPlateCalculator by remember { mutableStateOf(false) }
-    var plateCalcInitialWeight by remember { mutableDoubleStateOf(60.0) }
-    var targetExerciseAndSetIndex by remember { mutableStateOf<Pair<Int, Int>?>(null) }
-    var showOneRmCalculator by remember { mutableStateOf(false) }
-    var oneRmInitialWeight by remember { mutableDoubleStateOf(80.0) }
-    var oneRmInitialReps by remember { mutableIntStateOf(5) }
+
+    var editingSupersetId by remember { mutableStateOf<String?>(null) }
+    var tempSupersetNote by remember { mutableStateOf("") }
 
     if (showDiscardDialog) {
         AlertDialog(
@@ -137,6 +138,38 @@ fun WorkoutFormScreen(
         )
     }
 
+    if (editingSupersetId != null) {
+        val currentSid = editingSupersetId!!
+        AlertDialog(
+            onDismissRequest = { editingSupersetId = null },
+            title = { Text(stringResource(R.string.supersets_note_dialog_title)) },
+            text = {
+                OutlinedTextField(
+                    value = tempSupersetNote,
+                    onValueChange = { tempSupersetNote = it },
+                    placeholder = { Text(stringResource(R.string.supersets_note_placeholder)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.updateSupersetNote(currentSid, tempSupersetNote)
+                        editingSupersetId = null
+                    }
+                ) {
+                    Text(stringResource(R.string.btn_save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { editingSupersetId = null }) {
+                    Text(stringResource(R.string.btn_cancel))
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -147,29 +180,6 @@ fun WorkoutFormScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = {
-                        val firstSet = uiState.exercises.firstOrNull()?.sets?.firstOrNull()
-                        oneRmInitialWeight = firstSet?.weight ?: 80.0
-                        oneRmInitialReps = firstSet?.reps ?: 5
-                        showOneRmCalculator = true
-                    }) {
-                        Icon(
-                            Icons.Default.Speed,
-                            contentDescription = stringResource(R.string.one_rm_open_tooltip),
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    IconButton(onClick = {
-                        plateCalcInitialWeight = 60.0
-                        targetExerciseAndSetIndex = null
-                        showPlateCalculator = true
-                    }) {
-                        Icon(
-                            Icons.Default.Calculate,
-                            contentDescription = stringResource(R.string.plate_calc_open_tooltip),
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
                     if (uiState.id == null) {
                         IconButton(onClick = { showDiscardDialog = true }) {
                             Icon(
@@ -315,28 +325,6 @@ fun WorkoutFormScreen(
 
                             Spacer(modifier = Modifier.height(12.dp))
 
-                            // Intensity Stars Selector
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("Intensity:", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                                Row {
-                                    (1..5).forEach { star ->
-                                        IconButton(onClick = { viewModel.onIntensityChange(star) }) {
-                                            Icon(
-                                                imageVector = if (star <= uiState.intensity) Icons.Filled.Star else Icons.Outlined.StarBorder,
-                                                contentDescription = "$star stars",
-                                                tint = if (star <= uiState.intensity) AccentGoldLight else MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
                             OutlinedTextField(
                                 value = uiState.comment,
                                 onValueChange = viewModel::onCommentChange,
@@ -360,224 +348,153 @@ fun WorkoutFormScreen(
                     }
                 }
 
-                // List of Exercises in active workout
-                itemsIndexed(uiState.exercises) { exIndex, workoutEx ->
-                    val exInfo = uiState.availableExercises.find { it.id == workoutEx.exerciseId }
-                    val exerciseName = exInfo?.name ?: "Exercise"
+                // List of Exercises in active workout (grouped into supersets if enabled)
+                val exerciseBlocks = if (uiState.enableSupersets) {
+                    SupersetUtils.groupWorkoutExercises(uiState.exercises)
+                } else {
+                    uiState.exercises.mapIndexed { idx, ex ->
+                        SupersetGroup(
+                            isSuperset = false,
+                            items = listOf(SupersetItemWrapper(ex, idx))
+                        )
+                    }
+                }
 
-                    TactileCard(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
+                exerciseBlocks.forEachIndexed { blockIdx, block ->
+                    if (block.isSuperset) {
+                        item(key = "superset_${block.supersetId ?: blockIdx}") {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f))
+                                    .border(
+                                        width = 1.5.dp,
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
+                                        shape = RoundedCornerShape(16.dp)
+                                    )
+                                    .padding(12.dp)
                             ) {
-                                ExerciseIcon(
-                                    iconUrl = exInfo?.iconUrl,
-                                    exerciseName = exerciseName,
-                                    size = 40.dp,
-                                    shape = RoundedCornerShape(10.dp)
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = exerciseName,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    if (exInfo != null) {
-                                        Text(
-                                            text = "${stringResource(exInfo.bodypart.labelRes)} • ${stringResource(exInfo.category.labelRes)}",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-
-                                IconButton(onClick = {
-                                    val lastSet = workoutEx.sets.lastOrNull()
-                                    oneRmInitialWeight = lastSet?.weight ?: 80.0
-                                    oneRmInitialReps = lastSet?.reps ?: 5
-                                    showOneRmCalculator = true
-                                }) {
-                                    Icon(
-                                        Icons.Default.Speed,
-                                        contentDescription = stringResource(R.string.one_rm_open_tooltip),
-                                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
-                                    )
-                                }
-
-                                IconButton(onClick = {
-                                    val lastWeight = workoutEx.sets.lastOrNull()?.weight ?: 60.0
-                                    plateCalcInitialWeight = lastWeight
-                                    targetExerciseAndSetIndex = Pair(exIndex, workoutEx.sets.lastIndex.coerceAtLeast(0))
-                                    showPlateCalculator = true
-                                }) {
-                                    Icon(
-                                        Icons.Default.Calculate,
-                                        contentDescription = stringResource(R.string.plate_calc_open_tooltip),
-                                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
-                                    )
-                                }
-
-                                IconButton(onClick = { viewModel.removeExercise(exIndex) }) {
-                                    Icon(
-                                        Icons.Default.Delete,
-                                        contentDescription = "Remove Exercise",
-                                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            // Sets header
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(stringResource(R.string.unit_sets).uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("${stringResource(R.string.metric_weight)} (${stringResource(R.string.unit_kg)})".uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(stringResource(R.string.unit_reps).uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Spacer(modifier = Modifier.width(32.dp))
-                            }
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            // Set rows
-                            workoutEx.sets.forEachIndexed { setIndex, set ->
+                                // Superset header
                                 Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    // Set Number badge
-                                    Box(
-                                        modifier = Modifier
-                                            .size(28.dp)
-                                            .clip(CircleShape)
-                                            .background(MaterialTheme.colorScheme.surfaceVariant),
-                                        contentAlignment = Alignment.Center
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.weight(1f)
                                     ) {
-                                        Text(
-                                            "${setIndex + 1}",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = FontWeight.Bold
+                                        Icon(
+                                            imageVector = Icons.Default.Link,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(20.dp)
                                         )
-                                    }
-
-                                    // Weight quick editor
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        IconButton(
-                                            onClick = {
-                                                val w = (set.weight ?: 20.0) - 2.5
-                                                viewModel.updateSet(exIndex, setIndex, if (w >= 0) w else 0.0, null)
-                                            },
-                                            modifier = Modifier.size(28.dp)
-                                        ) {
-                                            Icon(Icons.Default.Remove, contentDescription = "-2.5kg", modifier = Modifier.size(16.dp))
-                                        }
-
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(6.dp))
-                                                .clickable {
-                                                    plateCalcInitialWeight = set.weight ?: 20.0
-                                                    targetExerciseAndSetIndex = Pair(exIndex, setIndex)
-                                                    showPlateCalculator = true
-                                                }
-                                                .padding(horizontal = 4.dp, vertical = 2.dp)
-                                        ) {
-                                            Text(
-                                                text = "${set.weight ?: 0.0}",
-                                                style = MaterialTheme.typography.titleSmall,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                            Spacer(modifier = Modifier.width(2.dp))
-                                            Icon(
-                                                imageVector = Icons.Default.Calculate,
-                                                contentDescription = stringResource(R.string.plate_calc_open_tooltip),
-                                                modifier = Modifier.size(13.dp),
-                                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-                                            )
-                                        }
-
-                                        IconButton(
-                                            onClick = {
-                                                val w = (set.weight ?: 20.0) + 2.5
-                                                viewModel.updateSet(exIndex, setIndex, w, null)
-                                            },
-                                            modifier = Modifier.size(28.dp)
-                                        ) {
-                                            Icon(Icons.Default.Add, contentDescription = "+2.5kg", modifier = Modifier.size(16.dp))
-                                        }
-                                    }
-
-                                    // Reps quick editor
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        IconButton(
-                                            onClick = {
-                                                val r = (set.reps ?: 10) - 1
-                                                viewModel.updateSet(exIndex, setIndex, null, if (r >= 0) r else 0)
-                                            },
-                                            modifier = Modifier.size(28.dp)
-                                        ) {
-                                            Icon(Icons.Default.Remove, contentDescription = "-1 rep", modifier = Modifier.size(16.dp))
-                                        }
-
+                                        Spacer(modifier = Modifier.width(6.dp))
                                         Text(
-                                            text = "${set.reps ?: 0}",
-                                            style = MaterialTheme.typography.titleSmall,
+                                            text = stringResource(R.string.supersets_title, block.letter ?: "A"),
+                                            style = MaterialTheme.typography.titleMedium,
                                             fontWeight = FontWeight.Bold,
-                                            modifier = Modifier.padding(horizontal = 6.dp)
+                                            color = MaterialTheme.colorScheme.primary
                                         )
-
-                                        IconButton(
-                                            onClick = {
-                                                val r = (set.reps ?: 10) + 1
-                                                viewModel.updateSet(exIndex, setIndex, null, r)
-                                            },
-                                            modifier = Modifier.size(28.dp)
-                                        ) {
-                                            Icon(Icons.Default.Add, contentDescription = "+1 rep", modifier = Modifier.size(16.dp))
+                                        if (!block.note.isNullOrBlank()) {
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = "\"${block.note}\"",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                                modifier = Modifier.clickable {
+                                                    editingSupersetId = block.supersetId
+                                                    tempSupersetNote = block.note ?: ""
+                                                }
+                                            )
                                         }
                                     }
 
-                                    // Remove set
-                                    IconButton(
-                                        onClick = { viewModel.removeSet(exIndex, setIndex) },
-                                        modifier = Modifier.size(28.dp)
-                                    ) {
-                                        Icon(Icons.Default.Close, contentDescription = "Delete Set", modifier = Modifier.size(16.dp))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        IconButton(
+                                            onClick = {
+                                                editingSupersetId = block.supersetId
+                                                tempSupersetNote = block.note ?: ""
+                                            },
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.EditNote,
+                                                contentDescription = stringResource(if (block.note.isNullOrBlank()) R.string.supersets_add_note else R.string.supersets_edit_note),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        IconButton(
+                                            onClick = {
+                                                block.items.forEach { item ->
+                                                    viewModel.unlinkSuperset(item.originalIndex)
+                                                }
+                                            },
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.LinkOff,
+                                                contentDescription = stringResource(R.string.supersets_unlink),
+                                                tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    block.items.forEach { itemWrapper ->
+                                        WorkoutExerciseCard(
+                                            exIndex = itemWrapper.originalIndex,
+                                            workoutEx = itemWrapper.item,
+                                            supersetTag = itemWrapper.tag,
+                                            isInsideSuperset = true,
+                                            enableSupersets = uiState.enableSupersets,
+                                            enableExertionTracking = uiState.enableExertionTracking,
+                                            exertionMode = uiState.exertionMode,
+                                            availableExercises = uiState.availableExercises,
+                                            onUpdateSet = { sIdx, w, r, rpe, rir, updateExertion ->
+                                                viewModel.updateSet(itemWrapper.originalIndex, sIdx, w, r, rpe, rir, updateExertion)
+                                            },
+                                            onAddSet = { viewModel.addSet(itemWrapper.originalIndex) },
+                                            onRemoveSet = { sIdx -> viewModel.removeSet(itemWrapper.originalIndex, sIdx) },
+                                            onRemoveExercise = { viewModel.removeExercise(itemWrapper.originalIndex) },
+                                            onUnlinkSuperset = { viewModel.unlinkSuperset(itemWrapper.originalIndex) },
+                                            onLinkWithNext = null
+                                        )
                                     }
                                 }
                             }
-
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            // Add Set Button with Tactile haptics
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
-                                        .tactileClickable { viewModel.addSet(exIndex) }
-                                        .padding(horizontal = 16.dp, vertical = 6.dp)
-                                ) {
-                                    Text(
-                                        stringResource(R.string.btn_add_set),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            }
+                        }
+                    } else {
+                        item(key = "exercise_${block.items[0].originalIndex}") {
+                            val itemWrapper = block.items[0]
+                            WorkoutExerciseCard(
+                                exIndex = itemWrapper.originalIndex,
+                                workoutEx = itemWrapper.item,
+                                supersetTag = null,
+                                isInsideSuperset = false,
+                                enableSupersets = uiState.enableSupersets,
+                                enableExertionTracking = uiState.enableExertionTracking,
+                                exertionMode = uiState.exertionMode,
+                                availableExercises = uiState.availableExercises,
+                                onUpdateSet = { sIdx, w, r, rpe, rir, updateExertion ->
+                                    viewModel.updateSet(itemWrapper.originalIndex, sIdx, w, r, rpe, rir, updateExertion)
+                                },
+                                onAddSet = { viewModel.addSet(itemWrapper.originalIndex) },
+                                onRemoveSet = { sIdx -> viewModel.removeSet(itemWrapper.originalIndex, sIdx) },
+                                onRemoveExercise = { viewModel.removeExercise(itemWrapper.originalIndex) },
+                                onUnlinkSuperset = null,
+                                onLinkWithNext = if (uiState.enableSupersets && itemWrapper.originalIndex < uiState.exercises.size - 1) {
+                                    { viewModel.linkWithNext(itemWrapper.originalIndex) }
+                                } else null
+                            )
                         }
                     }
                 }
@@ -614,103 +531,350 @@ fun WorkoutFormScreen(
 
         // Exercise Picker Bottom Sheet
         if (showExercisePicker) {
-            ModalBottomSheet(
-                onDismissRequest = { showExercisePicker = false },
-                sheetState = rememberModalBottomSheetState()
+            ch.simibu.sport.core.designsystem.ExercisePickerSheet(
+                availableExercises = uiState.availableExercises,
+                searchQuery = exerciseSearchQuery,
+                onSearchQueryChange = { exerciseSearchQuery = it },
+                onExerciseSelected = { ex ->
+                    viewModel.addExercise(ex.id)
+                    showExercisePicker = false
+                    exerciseSearchQuery = ""
+                },
+                onDismissRequest = { showExercisePicker = false }
+            )
+        }
+    }
+}
+
+@Composable
+private fun WorkoutExerciseCard(
+    exIndex: Int,
+    workoutEx: WorkoutExercise,
+    supersetTag: String?,
+    isInsideSuperset: Boolean,
+    enableSupersets: Boolean,
+    enableExertionTracking: Boolean,
+    exertionMode: String,
+    availableExercises: List<Exercise>,
+    onUpdateSet: (setIndex: Int, weight: Double?, reps: Int?, rpe: Double?, rir: Double?, updateExertion: Boolean) -> Unit,
+    onAddSet: () -> Unit,
+    onRemoveSet: (setIndex: Int) -> Unit,
+    onRemoveExercise: () -> Unit,
+    onUnlinkSuperset: (() -> Unit)?,
+    onLinkWithNext: (() -> Unit)?
+) {
+    val exInfo = availableExercises.find { it.id == workoutEx.exerciseId }
+    val exerciseName = exInfo?.name ?: "Exercise"
+
+    TactileCard(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 12.dp)
-                ) {
-                    Text(stringResource(R.string.picker_select_exercise), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    OutlinedTextField(
-                        value = exerciseSearchQuery,
-                        onValueChange = { exerciseSearchQuery = it },
-                        placeholder = { Text(stringResource(R.string.picker_search_placeholder)) },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    val filteredExercises = uiState.availableExercises.filter {
-                        exerciseSearchQuery.isBlank() ||
-                                it.name.contains(exerciseSearchQuery, ignoreCase = true) ||
-                                it.aliases.any { a -> a.contains(exerciseSearchQuery, ignoreCase = true) }
-                    }
-
-                    LazyColumn(
+                if (supersetTag != null) {
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(380.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(MaterialTheme.colorScheme.primary)
+                            .padding(horizontal = 7.dp, vertical = 3.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        items(filteredExercises) { ex ->
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-                                    .tactileClickable {
-                                        viewModel.addExercise(ex.id)
-                                        showExercisePicker = false
-                                        exerciseSearchQuery = ""
-                                    }
-                                    .padding(14.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    ExerciseIcon(
-                                        iconUrl = ex.iconUrl,
-                                        exerciseName = ex.name,
-                                        size = 36.dp,
-                                        shape = RoundedCornerShape(8.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(ex.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                                        Text("${stringResource(ex.bodypart.labelRes)} • ${stringResource(ex.category.labelRes)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                    Icon(Icons.Default.Add, contentDescription = "Add", tint = MaterialTheme.colorScheme.primary)
-                                }
-                            }
+                        Text(
+                            text = supersetTag,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+
+                ExerciseIcon(
+                    iconUrl = exInfo?.iconUrl,
+                    exerciseName = exerciseName,
+                    size = 38.dp,
+                    shape = RoundedCornerShape(10.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = exerciseName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    if (exInfo != null) {
+                        Text(
+                            text = "${stringResource(exInfo.bodypart.labelRes)} • ${stringResource(exInfo.category.labelRes)}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                if (isInsideSuperset && onUnlinkSuperset != null) {
+                    IconButton(onClick = onUnlinkSuperset, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            Icons.Default.LinkOff,
+                            contentDescription = stringResource(R.string.supersets_unlink),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                IconButton(onClick = onRemoveExercise, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Remove Exercise",
+                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            if (!isInsideSuperset && onLinkWithNext != null) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                            .tactileClickable { onLinkWithNext() }
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.Link,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = stringResource(R.string.supersets_link_with_next),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
                         }
                     }
                 }
             }
-        }
 
-        // Plate Calculator Bottom Sheet
-        if (showPlateCalculator) {
-            PlateCalculatorSheet(
-                initialWeight = plateCalcInitialWeight,
-                onDismissRequest = {
-                    showPlateCalculator = false
-                    targetExerciseAndSetIndex = null
-                },
-                onApplyWeight = targetExerciseAndSetIndex?.let { (exIdx, setIdx) ->
-                    { newWeight ->
-                        viewModel.updateSet(exIdx, setIdx, newWeight, null)
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Sets header
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    stringResource(R.string.unit_sets).uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    "${stringResource(R.string.metric_weight)} (${stringResource(R.string.unit_kg)})".uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    stringResource(R.string.unit_reps).uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (enableExertionTracking) {
+                    Text(
+                        (if (exertionMode == ExertionUtils.MODE_RPE) stringResource(R.string.exertion_mode_rpe) else stringResource(R.string.exertion_mode_rir)).uppercase(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(modifier = Modifier.width(28.dp))
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Set rows
+            workoutEx.sets.forEachIndexed { setIndex, set ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Set Number badge
+                    Box(
+                        modifier = Modifier
+                            .size(26.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "${setIndex + 1}",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    // Weight quick editor
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = {
+                                val w = (set.weight ?: 20.0) - 2.5
+                                onUpdateSet(setIndex, if (w >= 0) w else 0.0, null, null, null, false)
+                            },
+                            modifier = Modifier.size(26.dp)
+                        ) {
+                            Icon(Icons.Default.Remove, contentDescription = "-2.5kg", modifier = Modifier.size(15.dp))
+                        }
+
+                        Text(
+                            text = "${set.weight ?: 0.0}",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 6.dp)
+                        )
+
+                        IconButton(
+                            onClick = {
+                                val w = (set.weight ?: 20.0) + 2.5
+                                onUpdateSet(setIndex, w, null, null, null, false)
+                            },
+                            modifier = Modifier.size(26.dp)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = "+2.5kg", modifier = Modifier.size(15.dp))
+                        }
+                    }
+
+                    // Reps quick editor
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = {
+                                val r = (set.reps ?: 10) - 1
+                                onUpdateSet(setIndex, null, if (r >= 0) r else 0, null, null, false)
+                            },
+                            modifier = Modifier.size(26.dp)
+                        ) {
+                            Icon(Icons.Default.Remove, contentDescription = "-1 rep", modifier = Modifier.size(15.dp))
+                        }
+
+                        Text(
+                            text = "${set.reps ?: 0}",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+
+                        IconButton(
+                            onClick = {
+                                val r = (set.reps ?: 10) + 1
+                                onUpdateSet(setIndex, null, r, null, null, false)
+                            },
+                            modifier = Modifier.size(26.dp)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = "+1 rep", modifier = Modifier.size(15.dp))
+                        }
+                    }
+
+                    // Exertion editor (RPE / RIR)
+                    if (enableExertionTracking) {
+                        val displayedVal = ExertionUtils.getDisplayedExertion(set.rpe, set.rir, exertionMode)
+                        val textVal = when {
+                            displayedVal == null -> "—"
+                            displayedVal % 1.0 == 0.0 -> displayedVal.toInt().toString()
+                            else -> displayedVal.toString()
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(
+                                onClick = {
+                                    val current = displayedVal ?: if (exertionMode == ExertionUtils.MODE_RPE) 8.0 else 2.0
+                                    val nextVal = maxOf(0.0, current - 0.5)
+                                    val calc = ExertionUtils.calculateExertionValues(nextVal, exertionMode)
+                                    onUpdateSet(setIndex, null, null, calc.first, calc.second, true)
+                                },
+                                modifier = Modifier.size(26.dp)
+                            ) {
+                                Icon(Icons.Default.Remove, contentDescription = "-0.5", modifier = Modifier.size(15.dp))
+                            }
+
+                            Text(
+                                text = textVal,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .clickable {
+                                        val nextVal = if (displayedVal == null) {
+                                            if (exertionMode == ExertionUtils.MODE_RPE) 8.0 else 2.0
+                                        } else if (displayedVal >= (if (exertionMode == ExertionUtils.MODE_RPE) 10.0 else 5.0)) {
+                                            null
+                                        } else {
+                                            displayedVal + 0.5
+                                        }
+                                        val calc = ExertionUtils.calculateExertionValues(nextVal, exertionMode)
+                                        onUpdateSet(setIndex, null, null, calc.first, calc.second, true)
+                                    }
+                                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                            )
+
+                            IconButton(
+                                onClick = {
+                                    val current = displayedVal ?: if (exertionMode == ExertionUtils.MODE_RPE) 7.5 else 1.5
+                                    val maxLimit = if (exertionMode == ExertionUtils.MODE_RPE) 10.0 else 10.0
+                                    val nextVal = minOf(maxLimit, current + 0.5)
+                                    val calc = ExertionUtils.calculateExertionValues(nextVal, exertionMode)
+                                    onUpdateSet(setIndex, null, null, calc.first, calc.second, true)
+                                },
+                                modifier = Modifier.size(26.dp)
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = "+0.5", modifier = Modifier.size(15.dp))
+                            }
+                        }
+                    }
+
+                    // Remove set
+                    IconButton(
+                        onClick = { onRemoveSet(setIndex) },
+                        modifier = Modifier.size(26.dp)
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "Delete Set", modifier = Modifier.size(15.dp))
                     }
                 }
-            )
-        }
+            }
 
-        // 1RM Calculator Bottom Sheet
-        if (showOneRmCalculator) {
-            OneRepMaxSheet(
-                initialWeight = oneRmInitialWeight,
-                initialReps = oneRmInitialReps,
-                onDismissRequest = { showOneRmCalculator = false }
-            )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Add Set Button with Tactile haptics
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
+                        .tactileClickable { onAddSet() }
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        stringResource(R.string.btn_add_set),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
         }
     }
 }

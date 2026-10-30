@@ -51,23 +51,38 @@ import ch.simibu.sport.core.designsystem.SportPurple
 import ch.simibu.sport.core.designsystem.SportRuby
 import ch.simibu.sport.core.designsystem.TactileCard
 import ch.simibu.sport.core.model.Exercise
-import ch.simibu.sport.core.model.Workout
+import ch.simibu.sport.core.util.ExertionUtils
+import ch.simibu.sport.core.util.SupersetGroup
+import ch.simibu.sport.core.util.SupersetItemWrapper
+import ch.simibu.sport.core.util.SupersetUtils
+import ch.simibu.sport.domain.repository.UserProfileRepository
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontStyle
+import ch.simibu.sport.core.model.WorkoutExercise
 import ch.simibu.sport.domain.repository.AuthRepository
 import ch.simibu.sport.domain.repository.ExerciseRepository
 import ch.simibu.sport.domain.repository.WorkoutRepository
 import ch.simibu.sport.domain.usecase.WorkoutCalculationUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import kotlin.math.roundToInt
+
+import ch.simibu.sport.core.model.Workout
 
 data class WorkoutDetailsUiState(
     val workout: Workout? = null,
     val exercisesMap: Map<String, Exercise> = emptyMap(),
     val totalVolumeKg: Double = 0.0,
+    val exertionMode: String = "rpe",
     val isLoading: Boolean = true
 )
 
@@ -76,32 +91,38 @@ class WorkoutDetailsViewModel @Inject constructor(
     private val workoutRepository: WorkoutRepository,
     private val exerciseRepository: ExerciseRepository,
     private val authRepository: AuthRepository,
+    private val userProfileRepository: UserProfileRepository,
     val calculationUseCase: WorkoutCalculationUseCase
 ) : ViewModel() {
 
-    private val currentUserId = authRepository.currentUserId
+    private val currentUserId: String?
+        get() = authRepository.currentUserId
+    private val uiStateCache = ConcurrentHashMap<String, StateFlow<WorkoutDetailsUiState>>()
 
     fun getUiState(workoutId: String): StateFlow<WorkoutDetailsUiState> {
         val uid = currentUserId ?: return kotlinx.coroutines.flow.MutableStateFlow(WorkoutDetailsUiState(isLoading = false))
+        return uiStateCache.computeIfAbsent("$uid:$workoutId") {
+            combine(
+                workoutRepository.getWorkout(uid, workoutId),
+                exerciseRepository.getExercises(),
+                userProfileRepository.getUserProfile(uid)
+            ) { workout, exercises, profile ->
+                val exMap = exercises.associateBy { it.id }
+                val vol = if (workout != null) calculationUseCase.calculateTotalVolume(workout) else 0.0
 
-        return combine(
-            workoutRepository.getWorkout(uid, workoutId),
-            exerciseRepository.getExercises()
-        ) { workout, exercises ->
-            val exMap = exercises.associateBy { it.id }
-            val vol = if (workout != null) calculationUseCase.calculateTotalVolume(workout) else 0.0
-
-            WorkoutDetailsUiState(
-                workout = workout,
-                exercisesMap = exMap,
-                totalVolumeKg = vol,
-                isLoading = false
+                WorkoutDetailsUiState(
+                    workout = workout,
+                    exercisesMap = exMap,
+                    totalVolumeKg = vol,
+                    exertionMode = profile?.settings?.exertionMode ?: "rpe",
+                    isLoading = false
+                )
+            }.flowOn(Dispatchers.Default).stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = WorkoutDetailsUiState()
             )
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = WorkoutDetailsUiState()
-        )
+        }
     }
 }
 
@@ -220,71 +241,176 @@ fun WorkoutDetailsScreen(
                 }
             }
 
-            // Exercises and sets
-            items(workout.exercises) { exerciseItem ->
-                val ex = uiState.exercisesMap[exerciseItem.exerciseId]
-                val exerciseName = ex?.name ?: "Exercise"
-
-                TactileCard(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            ExerciseIcon(
-                                iconUrl = ex?.iconUrl,
-                                exerciseName = exerciseName,
-                                size = 40.dp,
-                                shape = RoundedCornerShape(10.dp)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
+            // Exercises and sets (grouped into supersets if applicable)
+            val blocks = SupersetUtils.groupWorkoutExercises(workout.exercises)
+            blocks.forEach { block ->
+                if (block.isSuperset) {
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f))
+                                .border(
+                                    width = 1.5.dp,
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
+                                    shape = RoundedCornerShape(16.dp)
+                                )
+                                .padding(12.dp)
+                        ) {
+                            // Superset header
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Link,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = exerciseName,
+                                    text = stringResource(R.string.supersets_title, block.letter ?: "A"),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    color = MaterialTheme.colorScheme.primary
                                 )
-                                if (!exerciseItem.note.isNullOrBlank()) {
-                                    Spacer(modifier = Modifier.height(2.dp))
+                                if (!block.note.isNullOrBlank()) {
+                                    Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = exerciseItem.note,
+                                        text = "\"${block.note}\"",
                                         style = MaterialTheme.typography.bodySmall,
+                                        fontStyle = FontStyle.Italic,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
-                        }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
 
-                        exerciseItem.sets.forEachIndexed { idx, set ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.workout_set_label, idx + 1),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = "${set.weight ?: 0.0} kg × ${set.reps ?: 0}",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Bold
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                block.items.forEach { itemWrapper ->
+                                    WorkoutDetailsExerciseCard(
+                                        exerciseItem = itemWrapper.item,
+                                        supersetTag = itemWrapper.tag,
+                                        exercisesMap = uiState.exercisesMap,
+                                        exertionMode = uiState.exertionMode
                                     )
-                                    if (!set.notes.isNullOrBlank()) {
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = "(${set.notes})",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
                                 }
                             }
+                        }
+                    }
+                } else {
+                    item {
+                        WorkoutDetailsExerciseCard(
+                            exerciseItem = block.items[0].item,
+                            supersetTag = null,
+                            exercisesMap = uiState.exercisesMap,
+                            exertionMode = uiState.exertionMode
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WorkoutDetailsExerciseCard(
+    exerciseItem: WorkoutExercise,
+    supersetTag: String?,
+    exercisesMap: Map<String, Exercise>,
+    exertionMode: String
+) {
+    val ex = exercisesMap[exerciseItem.exerciseId]
+    val exerciseName = ex?.name ?: "Exercise"
+
+    TactileCard(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (supersetTag != null) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(MaterialTheme.colorScheme.primary)
+                            .padding(horizontal = 7.dp, vertical = 3.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = supersetTag,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+
+                ExerciseIcon(
+                    iconUrl = ex?.iconUrl,
+                    exerciseName = exerciseName,
+                    size = 40.dp,
+                    shape = RoundedCornerShape(10.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = exerciseName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    if (!exerciseItem.note.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = exerciseItem.note,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            exerciseItem.sets.forEachIndexed { idx, set ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.workout_set_label, idx + 1),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        val exertionLabel = ExertionUtils.formatExertionLabel(set.rpe, set.rir, exertionMode)
+                        Text(
+                            text = "${set.weight ?: 0.0} kg × ${set.reps ?: 0}",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (exertionLabel.isNotBlank()) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "($exertionLabel)",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        if (!set.notes.isNullOrBlank()) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "(${set.notes})",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 }

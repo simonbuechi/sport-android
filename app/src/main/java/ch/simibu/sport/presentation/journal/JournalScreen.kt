@@ -22,7 +22,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -48,7 +47,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ch.simibu.sport.R
 import ch.simibu.sport.core.designsystem.SportGradientFloatingActionButton
-import ch.simibu.sport.core.designsystem.AccentGoldLight
 import ch.simibu.sport.core.designsystem.SportPurple
 import ch.simibu.sport.core.designsystem.SportRuby
 import ch.simibu.sport.core.designsystem.TactileCard
@@ -259,22 +257,6 @@ fun JournalScreen(
                                             fontWeight = FontWeight.SemiBold,
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
-                                    } else {
-                                        Spacer(modifier = Modifier.width(1.dp))
-                                    }
-
-                                    // Intensity Stars
-                                    if (workout.intensity != null && workout.intensity > 0) {
-                                        Row {
-                                            repeat(workout.intensity) {
-                                                Icon(
-                                                    Icons.Default.Star,
-                                                    contentDescription = null,
-                                                    tint = AccentGoldLight,
-                                                    modifier = Modifier.size(16.dp)
-                                                )
-                                            }
-                                        }
                                     }
                                 }
                             }
